@@ -443,9 +443,57 @@ function placeholder(id,msg){
   document.getElementById(id).parentElement.innerHTML='<div class="empty" style="white-space:pre-line;padding:46px 18px;line-height:1.7;">'+msg+'</div>';
 }
 /* 在柱状图上直接绘制数值标签（无外部依赖），便于现场核对金额 */
+function drawRecoveryGapLabels(chart){
+  const arr = chart.$recoveryArr;
+  if(!arr) return;
+  const ctx = chart.ctx;
+  const chartArea = chart.chartArea;
+  const meta0 = chart.getDatasetMeta(0);
+  const meta1 = chart.getDatasetMeta(1);
+  ctx.save();
+  ctx.textBaseline = 'middle';
+  for(let i=0; i<meta0.data.length; i++){
+    const tgtEl = meta0.data[i];
+    const gapEl = meta1.data[i];
+    const a = arr[i];
+    const total = a.rem, tgt = a.tgt, gap = a.gap;
+    const y = tgtEl.y;
+    // 1. total at leftmost (just before bars start)
+    ctx.fillStyle = '#1f2937';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(total.toLocaleString('zh-CN') + ' 万', chartArea.left - 6, y);
+    // 2. target value at right edge of target segment
+    if(tgt > 0){
+      const segRight = tgtEl.x + tgtEl.width/2;
+      const isWide = tgtEl.width > 50;
+      if(isWide){
+        ctx.fillStyle = '#fff'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center';
+        ctx.fillText(tgt.toLocaleString('zh-CN') + ' 万', tgtEl.x, y);
+      } else {
+        ctx.fillStyle = '#b45309'; ctx.font='11px sans-serif'; ctx.textAlign='left';
+        ctx.fillText(tgt.toLocaleString('zh-CN') + ' 万', segRight + 4, y);
+      }
+    }
+    // 3. gap value at right edge of gap segment
+    if(gap > 0){
+      const segRight = gapEl.x + gapEl.width/2;
+      const isWide = gapEl.width > 50;
+      if(isWide){
+        ctx.fillStyle = '#374151'; ctx.font='11px sans-serif'; ctx.textAlign='center';
+        ctx.fillText(gap.toLocaleString('zh-CN') + ' 万', gapEl.x, y);
+      } else {
+        ctx.fillStyle = '#6b7280'; ctx.font='11px sans-serif'; ctx.textAlign='left';
+        ctx.fillText(gap.toLocaleString('zh-CN') + ' 万', segRight + 4, y);
+      }
+    }
+  }
+  ctx.restore();
+}
 const datalabelPlugin = {
   id:'datalabels',
   afterDatasetsDraw(chart){
+    if(chart.canvas.id === 'cRecoveryGap'){ drawRecoveryGapLabels(chart); return; }
     const opts = chart.options.plugins && chart.options.plugins.datalabels;
     if(!opts || !opts.enabled) return;
     if(chart.config.type !== 'bar') return;
@@ -583,20 +631,26 @@ function renderRecoveryGap(rows){
   }).filter(x=>x.ratio>=0 && x.ratio<100 && x.rem>0)
     .sort((a,b)=>a.ratio-b.ratio);
   if(!arr.length){ placeholder('cRecoveryGap','所有客户回收目标占比均为100%，无需关注。'); return; }
+  // store gap on arr so drawRecoveryGapLabels can use it
+  arr.forEach(a=>{a.gap = Math.max(0, a.rem - a.tgt);});
   const labels=arr.map(x=>x.name);
   const tgtData=arr.map(x=>x.tgt);
-  const gapData=arr.map(x=>Math.max(0,x.rem-x.tgt));
+  const gapData=arr.map(x=>x.gap);
   const colors=arr.map(x=>x.ratio<30?'#ef4444':x.ratio<70?'#eab308':'#f59e0b');
   ensureCanvas('cRecoveryGap');
-  makeChart('cRecoveryGap',barCfg(labels,[
+  const cfg = barCfg(labels,[
     {label:'回收目标',data:tgtData,backgroundColor:colors,stack:'a'},
     {label:'缺口',data:gapData,backgroundColor:'#e5e7eb',stack:'a'}
-  ],{horizontal:true, unit:'万', labels:true, stacked:true,
+  ],{horizontal:true, unit:'万', labels:false, stacked:true,
      tipCb:c=>{
        const a=arr[c.dataIndex];
        const val=c.parsed.x;
        return c.dataset.label+': '+val.toLocaleString('zh-CN')+' 万  |  占比: '+a.ratio.toFixed(1)+'%';
-     }}));
+     }});
+  cfg.options.layout = cfg.options.layout || {};
+  cfg.options.layout.padding = Object.assign({left: 60}, cfg.options.layout.padding);
+  makeChart('cRecoveryGap', cfg);
+  charts['cRecoveryGap'].$recoveryArr = arr;
 }
 
 /* ============ table ============ */
