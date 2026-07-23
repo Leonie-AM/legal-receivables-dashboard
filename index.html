@@ -201,7 +201,7 @@
       <div class="chart-box" style="height:430px;"><canvas id="cTrendChange"></canvas></div>
     </div>
     <div class="card wide">
-      <h3>回收目标占比不足 · 低于100%的客户 <span class="hint">灰色=剩余应收，彩色=回收目标</span></h3>
+      <h3>回收目标占比不足 · 低于100%的客户 <span class="hint">彩色=回收目标，灰色=缺口</span></h3>
       <div class="chart-box" style="height:480px;"><canvas id="cRecoveryGap"></canvas></div>
     </div>
   </section>
@@ -584,14 +584,18 @@ function renderRecoveryGap(rows){
     .sort((a,b)=>a.ratio-b.ratio);
   if(!arr.length){ placeholder('cRecoveryGap','所有客户回收目标占比均为100%，无需关注。'); return; }
   const labels=arr.map(x=>x.name);
-  const data=arr.map(x=>x.rem);
+  const tgtData=arr.map(x=>x.tgt);
+  const gapData=arr.map(x=>Math.max(0,x.rem-x.tgt));
   const colors=arr.map(x=>x.ratio<30?'#ef4444':x.ratio<70?'#eab308':'#f59e0b');
   ensureCanvas('cRecoveryGap');
-  makeChart('cRecoveryGap',barCfg(labels,[{label:'剩余应收',data,backgroundColor:colors}],
-    {horizontal:true, unit:'万', labels:true, legend:false,
+  makeChart('cRecoveryGap',barCfg(labels,[
+    {label:'回收目标',data:tgtData,backgroundColor:colors,stack:'a'},
+    {label:'缺口',data:gapData,backgroundColor:'#e5e7eb',stack:'a'}
+  ],{horizontal:true, unit:'万', labels:true, stacked:true,
      tipCb:c=>{
        const a=arr[c.dataIndex];
-       return a.name+'  剩余:'+a.rem+'万  目标:'+a.tgt+'万  占比:'+a.ratio.toFixed(1)+'%';
+       const val=c.parsed.x;
+       return c.dataset.label+': '+val.toLocaleString('zh-CN')+' 万  |  占比: '+a.ratio.toFixed(1)+'%';
      }}));
 }
 
