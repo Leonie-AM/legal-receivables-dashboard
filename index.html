@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>法务应收及诉讼数据看板</title>
+<script src="chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#eef2f7;
+    --panel:#ffffff;
+    --ink:#1f2937;
+    --muted:#6b7280;
+    --line:#e5e7eb;
+    --primary:#1e3a5f;
+    --primary-soft:#e8eef5;
+    --blue:#2563eb;
+    --amber:#f59e0b;
+    --red:#ef4444;
+    --green:#16a34a;
+    --shadow:0 1px 3px rgba(16,24,40,.08),0 1px 2px rgba(16,24,40,.04);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:13px;line-height:1.5;
+  }
+  header.topbar{
+    background:linear-gradient(120deg,#1e3a5f,#2c5282);
+    color:#fff;padding:18px 26px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  }
+  .topbar h1{font-size:19px;margin:0;font-weight:650;letter-spacing:.5px;}
+  .topbar .sub{font-size:12px;opacity:.82;margin-top:3px;}
+  .topbar .src{font-size:11.5px;opacity:.8;text-align:right;}
+  .wrap{max-width:1480px;margin:0 auto;padding:18px 22px 60px;}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+  .kpi{background:var(--panel);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);border:1px solid var(--line);position:relative;overflow:hidden;}
+  .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--primary);}
+  .kpi .label{color:var(--muted);font-size:12px;margin-bottom:6px;}
+  .kpi .value{font-size:22px;font-weight:700;letter-spacing:.3px;}
+  .kpi .unit{font-size:12px;color:var(--muted);font-weight:500;margin-left:3px;}
+  .kpi .foot{font-size:11px;color:var(--muted);margin-top:5px;}
+  .kpi.k-blue::before{background:var(--blue);}
+  .kpi.k-amber::before{background:var(--amber);}
+  .kpi.k-red::before{background:var(--red);}
+  .kpi.k-green::before{background:var(--green);}
+
+  /* Filter bar */
+  .filterbar{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:18px;}
+  .filterbar .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .filterbar .head{font-size:13px;font-weight:650;color:var(--primary);margin-right:6px;display:flex;align-items:center;gap:6px;}
+  .filters{display:flex;flex-wrap:wrap;gap:8px;flex:1;}
+  .fbtn{position:relative;}
+  .fbtn>button{
+    border:1px solid var(--line);background:#fff;color:var(--ink);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12.5px;
+    display:inline-flex;align-items:center;gap:6px;transition:.15s;
+  }
+  .fbtn>button:hover{border-color:var(--blue);}
+  .fbtn>button.active{border-color:var(--blue);background:var(--primary-soft);color:var(--primary);font-weight:600;}
+  .fbtn .badge{background:var(--blue);color:#fff;border-radius:10px;font-size:10.5px;padding:0 6px;min-width:16px;text-align:center;display:none;}
+  .fbtn>button.active .badge{display:inline-block;}
+  .fmenu{display:none;position:absolute;z-index:40;top:calc(100% + 6px);left:0;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(16,24,40,.16);min-width:200px;max-height:320px;overflow:auto;padding:8px;}
+  .fmenu.open{display:block;}
+  .fmenu label{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;font-size:12.5px;}
+  .fmenu label:hover{background:var(--primary-soft);}
+  .fmenu .mhead{display:flex;justify-content:space-between;padding:4px 8px 8px;border-bottom:1px solid var(--line);margin-bottom:6px;font-size:11.5px;color:var(--muted);}
+  .fmenu .mhead a{color:var(--blue);cursor:pointer;}
+  .fmenu input[type=checkbox]{accent-color:var(--blue);}
+  .search input{border:1px solid var(--line);border-radius:8px;padding:7px 11px;font-size:12.5px;width:170px;outline:none;}
+  .search input:focus{border-color:var(--blue);}
+  .actions{display:flex;gap:8px;align-items:center;}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 13px;cursor:pointer;font-size:12.5px;color:var(--ink);transition:.15s;}
+  .btn:hover{border-color:var(--blue);color:var(--primary);}
+  .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary);}
+  .btn.primary:hover{background:#16304f;color:#fff;}
+  select.groupSel{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 10px;font-size:12.5px;color:var(--ink);outline:none;cursor:pointer;}
+  select.groupSel:focus{border-color:var(--blue);}
+
+  /* charts */
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:18px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;}
+  .card h3{margin:0 0 10px;font-size:14px;font-weight:650;color:var(--primary);display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .card h3 .hint{font-size:11px;color:var(--muted);font-weight:400;}
+  .chart-box{position:relative;height:300px;}
+  .card.wide{grid-column:1 / -1;}
+
+  /* table */
+  .tablecard{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;}
+  .tablecard h3{margin:0 0 12px;font-size:14px;font-weight:650;color:var(--primary);display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .tablewrap{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:10px;}
+  table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap;}
+  thead th{position:sticky;top:0;background:var(--primary);color:#fff;padding:9px 10px;text-align:right;font-weight:600;cursor:pointer;user-select:none;z-index:2;}
+  thead th.txt{text-align:left;}
+  thead th:hover{background:#16304f;}
+  thead th .arr{opacity:.6;font-size:10px;margin-left:3px;}
+  tbody td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;}
+  tbody td.txt{text-align:left;}
+  tbody tr:hover{background:#f7fafc;}
+  tbody tr.total{background:#f1f5f9;font-weight:700;}
+  tbody tr.total td{border-top:2px solid var(--primary);}
+  tbody tr.group{background:#eaf0f7;cursor:pointer;}
+  tbody tr.group:hover{background:#dfe8f3;}
+  .grp{display:flex;gap:18px;align-items:center;flex-wrap:wrap;font-size:12px;padding:2px 4px;}
+  .grp .toggle{margin-left:auto;color:var(--muted);font-size:14px;}
+  .grp.grand{background:#f1f5f9;}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+  .pill.blue{background:#dbeafe;color:#1d4ed8;}
+  .pill.amber{background:#fef3c7;color:#b45309;}
+  .pill.red{background:#fee2e2;color:#b91c1c;}
+  .yn-y{color:var(--green);font-weight:600;}
+  .yn-n{color:var(--muted);}
+  .rate-good{color:var(--green);font-weight:600;}
+  .rate-mid{color:var(--amber);font-weight:600;}
+  .rate-bad{color:var(--red);font-weight:600;}
+  .count-tag{font-size:11px;color:var(--muted);}
+
+  /* responsive */
+  @media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr);}.grid{grid-template-columns:1fr;}}
+  @media(max-width:680px){.kpis{grid-template-columns:repeat(2,1fr);}.wrap{padding:12px;}}
+  /* insights */
+  .insights{background:linear-gradient(120deg,#fff7ed,#ffffff);border:1px solid #fed7aa;border-radius:12px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:18px;}
+  .insights h3{margin:0 0 10px;font-size:14px;font-weight:650;color:#b45309;display:flex;align-items:center;gap:8px;}
+  .insights ul{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:9px 22px;}
+  .insights li{font-size:12.5px;line-height:1.5;display:flex;gap:8px;align-items:flex-start;}
+  .insights li .dot{flex:0 0 auto;margin-top:6px;width:7px;height:7px;border-radius:50%;background:var(--amber);}
+  .insights li.bad .dot{background:var(--red);}
+  .insights li b{color:var(--ink);}
+  .insights .em{color:var(--red);font-weight:700;}
+  @media(max-width:680px){.insights ul{grid-template-columns:1fr;}}
+  .empty{text-align:center;color:var(--muted);padding:30px;}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div>
+    <h1>法务应收及诉讼数据看板</h1>
+    <div class="sub">异常应收跟踪 · 多维度筛选与分析</div>
+  </div>
+  <div class="src">数据基准日：2026-07-23<br/>来源：重点应收及诉讼数据0723.xlsx（分组嵌套版·含 2025 年底期初余额与 2026 年 1–6 月新增应收）</div>
+</header>
+
+<div class="wrap">
+  <!-- KPI -->
+  <section class="kpis" id="kpis"></section>
+
+  <!-- Filter bar -->
+  <section class="filterbar">
+    <div class="row">
+      <div class="head">🔎 筛选</div>
+      <div class="filters" id="filters"></div>
+      <div class="search"><input id="searchBox" type="text" placeholder="搜索客户简称…" /></div>
+      <div class="actions">
+        <select id="groupMode" class="groupSel" title="明细表分组方式">
+          <option value="">明细不分组</option>
+          <option value="跟进状态">按跟进状态分组</option>
+        </select>
+        <button class="btn" id="resetBtn">重置</button>
+        <button class="btn" id="csvBtn">导出CSV</button>
+        <button class="btn" id="uploadBtn">更新数据</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <span class="count-tag" id="filterSummary"></span>
+    </div>
+  </section>
+
+  <!-- Insights -->
+  <section class="insights" id="insights"></section>
+
+  <!-- Charts -->
+  <section class="grid">
+    <div class="card">
+      <h3>跟进状态 · 金额构成 <span class="hint">已回款 vs 剩余应收（万元）</span></h3>
+      <div class="chart-box"><canvas id="cStatus"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>业务类型 · 剩余应收 <span class="hint">单位：万元</span></h3>
+      <div class="chart-box"><canvas id="cBiz"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>客户类型 · 剩余应收占比 <span class="hint">单位：万元</span></h3>
+      <div class="chart-box"><canvas id="cCust"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>我司签约主体 · 剩余应收 <span class="hint">单位：万元</span></h3>
+      <div class="chart-box"><canvas id="cEntity"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>销售归属部门 · TOP剩余应收 <span class="hint">单位：万元</span></h3>
+      <div class="chart-box"><canvas id="cDept"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>催收/诉讼动作覆盖 <span class="hint">各动作"是/否"对应的剩余应收金额（万元）</span></h3>
+      <div class="chart-box"><canvas id="cAction"></canvas></div>
+    </div>
+    <div class="card wide">
+      <h3>重点客户 · 剩余应收 TOP 10 <span class="hint">单位：万元（红=尚有余额）</span></h3>
+      <div class="chart-box" style="height:340px;"><canvas id="cTop"></canvas></div>
+    </div>
+    <div class="card wide">
+      <h3>责任销售 · 回款率 <span class="hint">已回款/应收总额（%）</span></h3>
+      <div class="chart-box" style="height:300px;"><canvas id="cRate"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>账龄维度 · 剩余应收 <span class="hint">需含【账龄区间】列</span></h3>
+      <div class="chart-box"><canvas id="cAge"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>重点合同 · 剩余应收 TOP10 <span class="hint">需含【合同】列</span></h3>
+      <div class="chart-box"><canvas id="cContract"></canvas></div>
+    </div>
+    <div class="card wide">
+      <h3>应收发生趋势 · 按月 <span class="hint">需含日期/月份列</span></h3>
+      <div class="chart-box" style="height:280px;"><canvas id="cTrend"></canvas></div>
+    </div>
+    <div class="card wide">
+      <h3>应收余额趋势 · 净变化（2025年底 → 现在） <span class="hint">单位：万元（红=余额上升/恶化，绿=余额下降/改善）</span></h3>
+      <div class="chart-box" style="height:430px;"><canvas id="cTrendChange"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Table -->
+  <section class="tablecard">
+    <h3>明细数据 <span class="count-tag" id="tableCount"></span></h3>
+    <div class="tablewrap">
+      <table id="dataTable">
+        <thead><tr id="theadRow"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" />
+
+<script src="data.js"></script>
+<script>
+/* ============ config ============ */
+const NUM = ['应收总额','已回款金额（元）','剩余应收金额/涉诉金额（元）'];
+/* 上传不同命名版本的 Excel 时，按别名归一化为看板标准字段名 */
+const FIELD_ALIASES = {
+  '跟进状态': ['跟进状态','状态','Unnamed: 0','COL0'],
+  '客户简称': ['客户简称','客户','客户名称'],
+  '应收总额': ['应收总额','应收合计'],
+  '已回款金额（元）': ['已回款金额（元）','已回款','已回款金额','2026.630已回款金额（元）'],
+  '剩余应收金额/涉诉金额（元）': ['剩余应收金额/涉诉金额（元）','剩余应收','剩余应收金额'],
+  '我司签约主体': ['我司签约主体','签约主体'],
+  '法务是否介入': ['法务是否介入','法务是否定期追踪','法务是否跟踪'],
+  '律师是否介入': ['律师是否介入'],
+  '是否发送催款函': ['是否发送催款函','催款函'],
+  '是否发送律师函': ['是否发送律师函','律师函'],
+  '是否进入司法程序': ['是否进入司法程序','司法程序','是否诉讼'],
+  '业务类型': ['业务类型'],
+  '客户类型': ['客户类型'],
+  '责任销售': ['责任销售','销售负责人'],
+  '销售归属部门': ['销售归属部门','销售部门'],
+  '业务归属部门': ['业务归属部门','业务部门'],
+  '2025年12月底数据': ['2025年12月底数据','2025年12月底','2025.12应收总额','期初余额','年底余额'],
+  '2026年1-6新增应收': ['2026年1-6新增应收','2026.1-6新增应收','2026年1至6月新增应收','本年1-6新增应收','1-6月新增应收'],
+};
+const ALIAS_TO_STD = {};
+Object.entries(FIELD_ALIASES).forEach(([std, al])=> al.forEach(a=>{ if(!(a in ALIAS_TO_STD)) ALIAS_TO_STD[a]=std; }));
+const STATUS_COLOR = {'应收跟进':'#2563eb','停滞状态':'#f59e0b','诉讼流程':'#ef4444'};
+const STATUS_PILL  = {'应收跟进':'blue','停滞状态':'amber','诉讼流程':'red'};
+/* 分组嵌套布局：跟进状态被压进「客户简称」列当分组小标题（如0723版）。解析时按此白名单还原为各行属性。 */
+const STATUS_WORDS = ['应收跟进','停滞状态','诉讼流程'];
+const PALETTE = ['#2563eb','#0ea5e9','#14b8a6','#22c55e','#eab308','#f59e0b','#ef4444','#ec4899','#8b5cf6','#6366f1','#0891b2','#65a30d','#a855f7','#0d9488'];
+const BASE_FILTER_FIELDS = [
+  {key:'跟进状态',label:'跟进状态'},
+  {key:'业务类型',label:'业务类型'},
+  {key:'客户类型',label:'客户类型'},
+  {key:'我司签约主体',label:'我司签约主体'},
+  {key:'销售归属部门',label:'销售归属部门'},
+  {key:'业务归属部门',label:'业务归属部门'},
+  {key:'责任销售',label:'责任销售'},
+  {key:'法务是否介入',label:'法务介入'},
+  {key:'律师是否介入',label:'律师介入'},
+  {key:'是否发送催款函',label:'已发催款函'},
+  {key:'是否发送律师函',label:'已发律师函'},
+  {key:'是否进入司法程序',label:'进入司法程序'},
+];
+let FILTER_FIELDS = BASE_FILTER_FIELDS.slice();
+const ACTION_FIELDS = [
+  {key:'法务是否介入',label:'法务介入'},
+  {key:'律师是否介入',label:'律师介入'},
+  {key:'是否发送催款函',label:'发送催款函'},
+  {key:'是否发送律师函',label:'发送律师函'},
+  {key:'是否进入司法程序',label:'进入司法程序'},
+];
+const BASE_TABLE_COLS = [
+  {k:'跟进状态',t:'跟进状态',txt:true},
+  {k:'客户简称',t:'客户简称',txt:true},
+  {k:'应收总额',t:'应收总额(万元)',num:true},
+  {k:'已回款金额（元）',t:'已回款(万元)',num:true},
+  {k:'剩余应收金额/涉诉金额（元）',t:'剩余应收(万元)',num:true},
+  {k:'回款率',t:'回款率',rate:true},
+  {k:'我司签约主体',t:'我司签约主体',txt:true},
+  {k:'业务类型',t:'业务类型',txt:true},
+  {k:'客户类型',t:'客户类型',txt:true},
+  {k:'责任销售',t:'责任销售',txt:true},
+  {k:'销售归属部门',t:'销售归属部门',txt:true},
+  {k:'业务归属部门',t:'业务归属部门',txt:true},
+  {k:'法务是否介入',t:'法务介入',yn:true},
+  {k:'律师是否介入',t:'律师介入',yn:true},
+  {k:'是否发送催款函',t:'催款函',yn:true},
+  {k:'是否发送律师函',t:'律师函',yn:true},
+  {k:'是否进入司法程序',t:'司法程序',yn:true},
+];
+let TABLE_COLS = BASE_TABLE_COLS.slice();
+const OPT = {ageField:null, contractField:null, dateField:null, baselineField:null, newAddField:null};
+
+let DATA = DASH_DATA.records.map(r=>({...r, 回款率: (r['应收总额']>0 ? r['已回款金额（元）']/r['应收总额'] : 0)}));
+const filters = {};
+BASE_FILTER_FIELDS.forEach(f=>filters[f.key]=new Set());
+let searchText = '';
+let sortState = {k:'剩余应收金额/涉诉金额（元）', dir:-1};
+let groupMode = '';
+const collapsedGroups = new Set();
+const charts = {};
+
+/* ============ helpers ============ */
+const yuan = v => '¥'+Number(v).toLocaleString('zh-CN',{maximumFractionDigits:2});
+const wan  = v => Math.round(Number(v)/10000).toLocaleString('zh-CN');
+const pct  = v => (Number(v)*100).toFixed(1)+'%';
+function uniq(field){
+  const s=new Set(); DATA.forEach(r=>{ if(r[field]!=null) s.add(r[field]); });
+  return [...s].sort((a,b)=>String(a).localeCompare(String(b),'zh'));
+}
+function aggSum(rows, field, valField){
+  const m={}; rows.forEach(r=>{ const k=r[field]; if(k==null)return; m[k]=(m[k]||0)+Number(r[valField]||0); }); return m;
+}
+function sumField(rows,f){return rows.reduce((s,r)=>s+(Number(r[f])||0),0);}
+function applyFilters(){
+  return DATA.filter(r=>{
+    for(const f of FILTER_FIELDS){
+      const sel=filters[f.key];
+      if(sel.size && !sel.has(r[f.key])) return false;
+    }
+    if(searchText && !String(r['客户简称']||'').toLowerCase().includes(searchText.toLowerCase())) return false;
+    return true;
+  });
+}
+function setupData(){
+  const cols = DATA.length ? Object.keys(DATA[0]) : [];
+  const find = (...kws)=> cols.find(c=>kws.some(k=>String(c).includes(k)));
+  OPT.ageField = find('账龄','账期') || null;
+  OPT.contractField = find('合同') || null;
+  OPT.dateField = find('日期','月份','期间','账期') || null;
+  OPT.baselineField = find('2025年12月底','年底','期初','期初余额') || null;
+  FILTER_FIELDS = BASE_FILTER_FIELDS.slice();
+  if(OPT.ageField) FILTER_FIELDS.push({key:OPT.ageField,label:'账龄区间'});
+  if(OPT.contractField) FILTER_FIELDS.push({key:OPT.contractField,label:'合同'});
+  FILTER_FIELDS.forEach(f=>{ if(!filters[f.key]) filters[f.key]=new Set(); });
+  TABLE_COLS = BASE_TABLE_COLS.slice();
+  if(OPT.ageField) TABLE_COLS.push({k:OPT.ageField,t:OPT.ageField,txt:true});
+  if(OPT.contractField) TABLE_COLS.push({k:OPT.contractField,t:OPT.contractField,txt:true});
+  if(OPT.baselineField){
+    DATA.forEach(r=>{ r['净变化(26年至今)']=(Number(r['剩余应收金额/涉诉金额（元）'])||0)-(Number(r[OPT.baselineField])||0); });
+    TABLE_COLS.push({k:OPT.baselineField,t:'2025年底余额(万元)',num:true});
+    TABLE_COLS.push({k:'净变化(26年至今)',t:'净变化(万元)',net:true});
+  }
+  OPT.newAddField = find('新增应收','1-6新增','1至6月新增') || null;
+  if(OPT.newAddField) TABLE_COLS.push({k:OPT.newAddField, t:'本年1-6新增(万元)', num:true});
+}
+
+/* ============ filter UI ============ */
+function buildFilters(){
+  const box=document.getElementById('filters');
+  box.innerHTML='';
+  FILTER_FIELDS.forEach(f=>{
+    const wrap=document.createElement('div'); wrap.className='fbtn';
+    const btn=document.createElement('button'); btn.dataset.field=f.key;
+    btn.innerHTML=`${f.label} <span class="badge"></span> <span style="opacity:.5">▾</span>`;
+    const menu=document.createElement('div'); menu.className='fmenu'; menu.dataset.field=f.key;
+    const vals=uniq(f.key);
+    let html=`<div class="mhead"><span>${f.label}（${vals.length}）</span><span><a data-act="all">全选</a> · <a data-act="none">清空</a></span></div>`;
+    vals.forEach(v=>{
+      const cnt=DATA.filter(r=>r[f.key]===v).length;
+      html+=`<label><input type="checkbox" value="${v}"> ${v} <span style="margin-left:auto;color:var(--muted)">${cnt}</span></label>`;
+    });
+    menu.innerHTML=html;
+    wrap.appendChild(btn); wrap.appendChild(menu); box.appendChild(wrap);
+
+    btn.addEventListener('click',e=>{e.stopPropagation();
+      document.querySelectorAll('.fmenu.open').forEach(m=>{if(m!==menu)m.classList.remove('open');});
+      menu.classList.toggle('open');
+    });
+    menu.addEventListener('click',e=>{e.stopPropagation();
+      if(e.target.dataset.act==='all'){vals.forEach(v=>filters[f.key].add(v));}
+      else if(e.target.dataset.act==='none'){filters[f.key].clear();}
+      else if(e.target.type==='checkbox'){
+        const v=e.target.value;
+        if(e.target.checked) filters[f.key].add(v); else filters[f.key].delete(v);
+      }
+      syncFilterBtn(f.key); renderAll();
+    });
+  });
+}
+function syncFilterBtn(field){
+  const btn=document.querySelector(`.fbtn>button[data-field="${field}"]`);
+  if(!btn) return;
+  const n=filters[field].size;
+  btn.querySelector('.badge').textContent=n;
+  btn.classList.toggle('active', n>0);
+}
+function closeMenus(){document.querySelectorAll('.fmenu.open').forEach(m=>m.classList.remove('open'));}
+
+/* ============ KPI ============ */
+function renderKPIs(rows){
+  const tot=rows.reduce((s,r)=>s+r['应收总额'],0);
+  const got=rows.reduce((s,r)=>s+r['已回款金额（元）'],0);
+  const rem=rows.reduce((s,r)=>s+r['剩余应收金额/涉诉金额（元）'],0);
+  const rate=tot>0?got/tot:0;
+  const litig=rows.filter(r=>r['是否进入司法程序']==='是');
+  const litigAmt=litig.reduce((s,r)=>s+r['剩余应收金额/涉诉金额（元）'],0);
+  const base=OPT.baselineField?rows.reduce((s,r)=>s+(Number(r[OPT.baselineField])||0),0):0;
+  const net=rem-base;
+  const netPct=base>0?net/base:0;
+  const cards=[
+    {cls:'',label:'客户数',value:rows.length,unit:'家',foot:`诉讼流程 ${rows.filter(r=>r['跟进状态']==='诉讼流程').length} 家`},
+    {cls:'k-blue',label:'应收总额',value:wan(tot),unit:'万元',foot:wan(tot)+' 万'},
+    {cls:'k-green',label:'已回款金额',value:wan(got),unit:'万元',foot:wan(got)+' 万'},
+    {cls:'k-amber',label:'剩余应收金额',value:wan(rem),unit:'万元',foot:wan(rem)+' 万'},
+    {cls:'k-green',label:'整体回款率',value:pct(rate),unit:'',foot:`已回 ${wan(got)} 万 / 应收 ${wan(tot)} 万`},
+    {cls:'k-red',label:'进入司法程序金额',value:wan(litigAmt),unit:'万元',foot:`${litig.length} 家客户已进入司法程序`},
+    {cls:'',label:'2025年底余额',value:wan(base),unit:'万元',foot:'2025-12-31 基准'},
+    {cls:net>0?'k-red':'k-green',label:'26年至今净变化',value:(net>0?'+':'')+wan(net),unit:'万元',foot:`${net>0?'↑ 逆势增加':'↓ 净回收'} ${pct(Math.abs(netPct))}（vs 年初）`},
+  ];
+  document.getElementById('kpis').innerHTML=cards.map(c=>`
+    <div class="kpi ${c.cls}">
+      <div class="label">${c.label}</div>
+      <div class="value">${c.value}<span class="unit">${c.unit}</span></div>
+      <div class="foot">${c.foot}</div>
+    </div>`).join('');
+}
+
+/* ============ charts ============ */
+function makeChart(id,config){
+  if(charts[id]) charts[id].destroy();
+  charts[id]=new Chart(document.getElementById(id),config);
+}
+function ensureCanvas(id){ document.getElementById(id).parentElement.innerHTML='<canvas id="'+id+'"></canvas>'; }
+function placeholder(id,msg){
+  if(charts[id]){charts[id].destroy(); delete charts[id];}
+  document.getElementById(id).parentElement.innerHTML='<div class="empty" style="white-space:pre-line;padding:46px 18px;line-height:1.7;">'+msg+'</div>';
+}
+/* 在柱状图上直接绘制数值标签（无外部依赖），便于现场核对金额 */
+const datalabelPlugin = {
+  id:'datalabels',
+  afterDatasetsDraw(chart){
+    const opts = chart.options.plugins && chart.options.plugins.datalabels;
+    if(!opts || !opts.enabled) return;
+    if(chart.config.type !== 'bar') return;
+    const ctx = chart.ctx;
+    const suffix = opts.suffix || '';
+    chart.data.datasets.forEach((ds, di)=>{
+      const meta = chart.getDatasetMeta(di);
+      if(meta.hidden) return;
+      meta.data.forEach((el, i)=>{
+        const v = ds.data[i];
+        if(v==null || v===0) return;
+        const txt = Math.round(v).toLocaleString('zh-CN') + (suffix?(' '+suffix):'');
+        ctx.save();
+        ctx.font='10px -apple-system,Segoe UI,Microsoft YaHei,sans-serif';
+        ctx.fillStyle='#374151';
+        if(chart.options.indexAxis==='y'){ ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(txt, el.x+4, el.y); }
+        else { ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(txt, el.x, el.y-3); }
+        ctx.restore();
+      });
+    });
+  }
+};
+Chart.register(datalabelPlugin);
+function barCfg(labels, datasets, o={}){
+  const unit = o.unit || '';
+  const horizontal = !!o.horizontal;
+  const stacked = !!o.stacked;
+  const showLegend = o.legend !== false;
+  /* 横向柱状图(indexAxis='y')的数值在 parsed.x，纵向在 parsed.y */
+  const valOf = c => (horizontal ? c.parsed.x : c.parsed.y);
+  const tipCb = o.tipCb || (c => c.dataset.label + ': ' + valOf(c).toLocaleString('zh-CN',{maximumFractionDigits:0}) + (unit?(' '+unit):''));
+  return {
+    type:'bar',
+    data:{labels, datasets},
+    options:{
+      indexAxis: horizontal ? 'y' : 'x',
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display: datasets.length>1 && showLegend, position:'bottom', labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:tipCb}},
+        datalabels:{enabled: !!o.labels, suffix: unit}
+      },
+      scales:(()=>{
+        const catTick = {font:{size:11}};
+        const valTick = {font:{size:11}, callback:v=>v.toLocaleString()};
+        return {
+          x:{stacked:stacked, ticks:horizontal ? valTick : catTick, grid:{display:false}},
+          y:{stacked:stacked, ticks:horizontal ? catTick : valTick, grid:{color:'#f0f0f0'}}
+        };
+      })()
+    }
+  };
+}
+function renderStatus(rows){
+  const labels=Object.keys(STATUS_COLOR);
+  const present=labels.filter(s=>rows.some(r=>r['跟进状态']===s));
+  const got=present.map(s=>rows.filter(r=>r['跟进状态']===s).reduce((a,r)=>a+r['已回款金额（元）'],0)/10000);
+  const rem=present.map(s=>rows.filter(r=>r['跟进状态']===s).reduce((a,r)=>a+r['剩余应收金额/涉诉金额（元）'],0)/10000);
+  const colors=present.map(s=>STATUS_COLOR[s]);
+  makeChart('cStatus',barCfg(present,[
+    {label:'已回款',data:got.map(v=>Math.round(v)),backgroundColor:'#94a3b8'},
+    {label:'剩余应收',data:rem.map(v=>Math.round(v)),backgroundColor:colors}
+  ],{stacked:true, unit:'万', labels:false}));
+}
+function renderBiz(rows){
+  const m=aggSum(rows,'业务类型','剩余应收金额/涉诉金额（元）');
+  let labels=Object.keys(m).sort((a,b)=>m[b]-m[a]);
+  let data=labels.map(k=>Math.round(m[k]/10000));
+  makeChart('cBiz',barCfg(labels,[
+    {label:'剩余应收',data,backgroundColor:labels.map((_,i)=>PALETTE[i%PALETTE.length])}
+  ],{horizontal:true, unit:'万', labels:true}));
+}
+function renderCust(rows){
+  const m=aggSum(rows,'客户类型','剩余应收金额/涉诉金额（元）');
+  const labels=Object.keys(m);
+  const data=labels.map(k=>Math.round(m[k]/10000));
+  const colors=labels.map((_,i)=>PALETTE[i%PALETTE.length]);
+  makeChart('cCust',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:c=>{const sum=data.reduce((a,b)=>a+b,0);return c.label+': '+c.parsed.toLocaleString()+' 万元 ('+(c.parsed/sum*100).toFixed(1)+'%)';}}}}}});
+}
+function renderEntity(rows){
+  const m=aggSum(rows,'我司签约主体','剩余应收金额/涉诉金额（元）');
+  let labels=Object.keys(m).sort((a,b)=>m[b]-m[a]);
+  let data=labels.map(k=>Math.round(m[k]/10000));
+  makeChart('cEntity',barCfg(labels,[
+    {label:'剩余应收',data,backgroundColor:labels.map((_,i)=>PALETTE[i%PALETTE.length])}
+  ],{unit:'万', labels:true}));
+}
+function renderDept(rows){
+  const m=aggSum(rows,'销售归属部门','剩余应收金额/涉诉金额（元）');
+  let labels=Object.keys(m).sort((a,b)=>m[b]-m[a]).slice(0,10);
+  let data=labels.map(k=>Math.round(m[k]/10000));
+  makeChart('cDept',barCfg(labels,[
+    {label:'剩余应收',data,backgroundColor:labels.map((_,i)=>PALETTE[i%PALETTE.length])}
+  ],{horizontal:true, unit:'万', labels:true}));
+}
+function renderAction(rows){
+  const labels=ACTION_FIELDS.map(a=>a.label);
+  const yesAmt = ACTION_FIELDS.map(a=>rows.filter(r=>r[a.key]==='是').reduce((s,r)=>s+r['剩余应收金额/涉诉金额（元）'],0)/10000);
+  const noAmt  = ACTION_FIELDS.map(a=>rows.filter(r=>r[a.key]==='否').reduce((s,r)=>s+r['剩余应收金额/涉诉金额（元）'],0)/10000);
+  const yesCnt = ACTION_FIELDS.map(a=>rows.filter(r=>r[a.key]==='是').length);
+  makeChart('cAction',barCfg(labels,[
+    {label:'是', data:yesAmt.map(v=>Math.round(v)), backgroundColor:'#16a34a'},
+    {label:'否', data:noAmt.map(v=>Math.round(v)), backgroundColor:'#e5e7eb'}
+  ],{horizontal:true, unit:'万', labels:true,
+     tipCb:c=>{
+       const isYes = c.dataset.label==='是';
+       return c.dataset.label + ': ' + (c.parsed.x).toLocaleString('zh-CN',{maximumFractionDigits:0}) + ' 万' +
+              (isYes ? '（'+yesCnt[c.dataIndex]+' 家）':'');
+     }}));
+}
+function renderTop(rows){
+  const sorted=[...rows].sort((a,b)=>b['剩余应收金额/涉诉金额（元）']-a['剩余应收金额/涉诉金额（元）']).slice(0,10);
+  const labels=sorted.map(r=>r['客户简称']).reverse();
+  const data=sorted.map(r=>Math.round(r['剩余应收金额/涉诉金额（元）']/10000)).reverse();
+  const colors=sorted.map(r=>STATUS_COLOR[r['跟进状态']]||'#2563eb').reverse();
+  makeChart('cTop',barCfg(labels,[
+    {label:'剩余应收',data,backgroundColor:colors}
+  ],{horizontal:true, unit:'万', labels:true, legend:false, tipCb:c=>(c.parsed.x).toLocaleString()+' 万'}));
+}
+function renderRate(rows){
+  const m={}; const got={};
+  rows.forEach(r=>{const k=r['责任销售']; if(!k)return; m[k]=(m[k]||0)+r['应收总额']; got[k]=(got[k]||0)+r['已回款金额（元）'];});
+  let entries=Object.keys(m).map(k=>[k, m[k]>0?got[k]/m[k]:0]).sort((a,b)=>b[1]-a[1]);
+  const labels=entries.map(e=>e[0]);
+  const data=entries.map(e=>+(e[1]*100).toFixed(1));
+  const colors=data.map(v=>v>=80?'#16a34a':v>=40?'#f59e0b':'#ef4444');
+  makeChart('cRate',barCfg(labels,[
+    {label:'回款率',data,backgroundColor:colors}
+  ],{unit:'%', labels:true, legend:false, tipCb:c=>c.parsed.y.toFixed(1)+'%'}));
+}
+function renderAge(rows){
+  if(!OPT.ageField){ placeholder('cAge','当前数据尚无「账龄区间 / 账期」列。\n\n上传包含账龄字段的明细后，此处自动展示账龄分布与风险结构。'); return; }
+  const m=aggSum(rows,OPT.ageField,'剩余应收金额/涉诉金额（元）');
+  const labels=Object.keys(m);
+  const data=labels.map(k=>Math.round(m[k]/10000));
+  const colors=labels.map((_,i)=>PALETTE[i%PALETTE.length]);
+  ensureCanvas('cAge');
+  makeChart('cAge',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:c=>{const s=data.reduce((a,b)=>a+b,0);return c.label+': '+c.parsed.toLocaleString()+' 万元 ('+(c.parsed/s*100).toFixed(1)+'%)';}}}}}});
+}
+function renderContract(rows){
+  if(!OPT.contractField){ placeholder('cContract','当前数据尚无「合同号 / 合同名称」列。\n\n上传包含合同字段的明细后，此处自动展示重点合同剩余应收排名。'); return; }
+  const m=aggSum(rows,OPT.contractField,'剩余应收金额/涉诉金额（元）');
+  let labels=Object.keys(m).sort((a,b)=>m[b]-m[a]).slice(0,10);
+  let data=labels.map(k=>Math.round(m[k]/10000));
+  ensureCanvas('cContract');
+  makeChart('cContract',barCfg(labels,[
+    {label:'剩余应收',data,backgroundColor:labels.map((_,i)=>PALETTE[i%PALETTE.length])}
+  ],{horizontal:true, unit:'万', labels:true, legend:false, tipCb:c=>(c.parsed.x).toLocaleString()+' 万'}));
+}
+function monthKey(v){
+  const s=String(v).trim();
+  const m=s.match(/(\d{4})[-/年.](\d{1,2})/);
+  if(m) return m[1]+'-'+m[2].padStart(2,'0');
+  const d=new Date(s);
+  if(!isNaN(d)) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  return null;
+}
+function renderTrend(rows){
+  if(!OPT.dateField){ placeholder('cTrend','当前数据尚无「记账日期 / 应收确认月份」列。\n\n上传包含日期字段的明细后，此处自动展示按月应收发生趋势。'); return; }
+  const months={};
+  rows.forEach(r=>{ const v=r[OPT.dateField]; if(!v)return; const m=monthKey(v); if(m) months[m]=(months[m]||0)+Number(r['应收总额']||0); });
+  const labels=Object.keys(months).sort();
+  const data=labels.map(k=>Math.round(months[k]/10000));
+  ensureCanvas('cTrend');
+  makeChart('cTrend',{type:'line',data:{labels,datasets:[{label:'应收总额',data,fill:true,backgroundColor:'rgba(37,99,235,.12)',borderColor:'#2563eb',tension:.3,pointRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y.toLocaleString()+' 万元'}}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:'#f0f0f0'},ticks:{callback:v=>v.toLocaleString()}}}}});
+}
+function renderTrendChange(rows){
+  if(!OPT.baselineField){ placeholder('cTrendChange','当前数据无「2025年12月底数据」列，无法计算净变化趋势。\n\n上传含该基准列的明细后，此处自动展示各客户余额净变化。'); return; }
+  const arr=rows.map(r=>({name:r['客户简称'], v:(Number(r['净变化(26年至今)'])||0)/10000}))
+    .filter(x=>x.v!==0)
+    .sort((a,b)=>Math.abs(b.v)-Math.abs(a.v));
+  const labels=arr.map(x=>x.name);
+  const data=arr.map(x=>Math.round(x.v));
+  const colors=arr.map(x=>x.v>0?'#ef4444':'#16a34a');
+  ensureCanvas('cTrendChange');
+  makeChart('cTrendChange',barCfg(labels,[{label:'净变化',data,backgroundColor:colors}],
+    {horizontal:true, unit:'万', labels:true, legend:false,
+     tipCb:c=>(c.parsed.x>0?'+':'')+c.parsed.x.toLocaleString('zh-CN')+' 万'}));
+}
+
+/* ============ table ============ */
+function buildHead(){
+  const tr=document.getElementById('theadRow');
+  tr.innerHTML=TABLE_COLS.map(c=>{
+    const arr=sortState.k===c.k?(sortState.dir<0?'▼':'▲'):'';
+    return `<th class="${c.txt?'txt':''}" data-k="${c.k}">${c.t}<span class="arr">${arr}</span></th>`;
+  }).join('');
+  tr.querySelectorAll('th').forEach(th=>th.addEventListener('click',()=>{
+    const k=th.dataset.k;
+    if(sortState.k===k) sortState.dir*=-1; else {sortState.k=k; const col=TABLE_COLS.find(x=>x.k===k); sortState.dir=(col&&(col.num||col.rate)?-1:1);}
+    buildHead(); renderTable(applyFilters());
+  }));
+}
+function rateClass(v){return v>=0.8?'rate-good':v>=0.4?'rate-mid':'rate-bad';}
+function cmp(a,b){
+  const k=sortState.k, dir=sortState.dir;
+  let x=a[k], y=b[k];
+  if(k==='回款率'){x=a['回款率'];y=b['回款率'];}
+  if(typeof x==='number'&&typeof y==='number') return (x-y)*dir;
+  return String(x==null?'':x).localeCompare(String(y==null?'':y),'zh')*dir;
+}
+function rowHtml(r){
+  return '<tr>'+TABLE_COLS.map(c=>{
+    if(c.k==='跟进状态') return `<td class="txt"><span class="pill ${STATUS_PILL[r['跟进状态']]||''}">${r['跟进状态']}</span></td>`;
+    if(c.k==='客户简称') return `<td class="txt">${r['客户简称']}</td>`;
+    if(c.num) return `<td>${wan(r[c.k])}</td>`;
+    if(c.rate) return `<td class="${rateClass(r['回款率'])}">${pct(r['回款率'])}</td>`;
+    if(c.net){const v=Number(r[c.k])||0;const cls=v>0?'rate-bad':v<0?'rate-good':'rate-mid';return `<td class="${cls}">${(v>0?'+':'')+wan(v)}</td>`;}
+    if(c.yn){const v=r[c.k];return `<td class="${v==='是'?'yn-y':'yn-n'}">${v}</td>`;}
+    return `<td class="txt">${r[c.k]??''}</td>`;
+  }).join('')+'</tr>';
+}
+function grandTotalHtml(rows){
+  const Ttot=sumField(rows,'应收总额'), Tgot=sumField(rows,'已回款金额（元）'), Trem=sumField(rows,'剩余应收金额/涉诉金额（元）');
+  const Trate=Ttot>0?Tgot/Ttot:0;
+  return `<tr class="total"><td colspan="${TABLE_COLS.length}"><div class="grp grand">`+
+    `<span><b>合计（${rows.length} 家）</b></span>`+
+    `<span>应收 <b>${wan(Ttot)} 万</b></span><span>已回款 <b>${wan(Tgot)} 万</b></span>`+
+    `<span>剩余 <b>${wan(Trem)} 万</b></span><span class="${rateClass(Trate)}">回款率 <b>${pct(Trate)}</b></span></div></td></tr>`;
+}
+function renderTable(rows){
+  const tbody=document.getElementById('tbody');
+  if(!rows.length){ tbody.innerHTML=`<tr><td class="empty" colspan="${TABLE_COLS.length}">无匹配数据，请调整筛选条件</td></tr>`; document.getElementById('tableCount').textContent='共 0 条'; return; }
+  if(!groupMode){
+    const sorted=[...rows].sort(cmp);
+    tbody.innerHTML = sorted.map(rowHtml).join('') + grandTotalHtml(rows);
+  } else {
+    const groups={};
+    rows.forEach(r=>{ const k=r[groupMode]||'未分类'; (groups[k]=groups[k]||[]).push(r); });
+    const order=Object.keys(groups).sort((a,b)=> sumField(groups[b],'剩余应收金额/涉诉金额（元）')-sumField(groups[a],'剩余应收金额/涉诉金额（元）'));
+    let html='';
+    order.forEach(g=>{
+      const grows=groups[g];
+      const tot=sumField(grows,'应收总额'), got=sumField(grows,'已回款金额（元）'), rem=sumField(grows,'剩余应收金额/涉诉金额（元）');
+      const rate=tot>0?got/tot:0;
+      const isCollapsed=collapsedGroups.has(g);
+      html+=`<tr class="group" data-g="${g}"><td colspan="${TABLE_COLS.length}"><div class="grp">`+
+        `<span class="pill ${STATUS_PILL[g]||''}">${g}</span>`+
+        `<span>客户数 <b>${grows.length}</b></span>`+
+        `<span>应收 <b>${wan(tot)} 万</b></span>`+
+        `<span>已回款 <b>${wan(got)} 万</b></span>`+
+        `<span>剩余 <b>${wan(rem)} 万</b></span>`+
+        `<span class="${rateClass(rate)}">回款率 <b>${pct(rate)}</b></span>`+
+        `<span class="toggle">${isCollapsed?'▸':'▾'}</span></div></td></tr>`;
+      if(!isCollapsed){
+        const sorted=[...grows].sort(cmp);
+        html+=sorted.map(rowHtml).join('');
+      }
+    });
+    html+=grandTotalHtml(rows);
+    tbody.innerHTML=html;
+    tbody.querySelectorAll('tr.group').forEach(tr=>tr.addEventListener('click',()=>{
+      const g=tr.dataset.g; if(collapsedGroups.has(g)) collapsedGroups.delete(g); else collapsedGroups.add(g); renderTable(applyFilters());
+    }));
+  }
+  document.getElementById('tableCount').textContent='共 '+rows.length+' 条';
+}
+
+/* ============ insights ============ */
+function renderInsights(rows){
+  const tot=sumField(rows,'应收总额'), got=sumField(rows,'已回款金额（元）'), rem=sumField(rows,'剩余应收金额/涉诉金额（元）');
+  const rate=tot>0?got/tot:0;
+  const items=[];
+  items.push({bad:rate<0.5, html:`整体回款率仅 <b class="em">${pct(rate)}</b>，剩余应收 <b>${wan(rem)} 万元</b> 待回收。`});
+  if(OPT.baselineField){const base=sumField(rows,OPT.baselineField); const d=rem-base;
+    items.push({bad:d>0, html:`26年至今应收余额<b class="${d>0?'em':''}">${d>0?'净增':'净降'} ${wan(Math.abs(d))} 万元</b>（${d>0?'+':''}${((d/base)*100).toFixed(1)}%，年初 ${wan(base)} 万 → 现在 ${wan(rem)} 万）。`});}
+  const litig=rows.filter(r=>r['是否进入司法程序']==='是');
+  if(litig.length){const la=litig.reduce((s,r)=>s+r['剩余应收金额/涉诉金额（元）'],0);
+    items.push({bad:true, html:`<b>${litig.length}</b> 家已进入司法程序，涉诉剩余应收 <b class="em">${wan(la)} 万元</b>。`});}
+  const none=rows.filter(r=>r['剩余应收金额/涉诉金额（元）']>0 && r['律师是否介入']==='否' && r['是否发送催款函']==='否' && r['是否发送律师函']==='否' && r['是否进入司法程序']==='否');
+  if(none.length){const na=none.reduce((s,r)=>s+r['剩余应收金额/涉诉金额（元）'],0);
+    items.push({bad:na>=5000000, html:`<b>${none.length}</b> 家客户剩余应收 <b>${wan(na)} 万元</b> 却<b>未采取任何催收/诉讼动作</b>（法务真空带）。`});}
+  const untracked=rows.filter(r=>r['剩余应收金额/涉诉金额（元）']>0 && r['法务是否介入']==='否');
+  if(untracked.length){const ua=untracked.reduce((s,r)=>s+r['剩余应收金额/涉诉金额（元）'],0);
+    items.push({bad:false, html:`<b>${untracked.length}</b> 家剩余应收客户<b>法务未介入</b>（金额 ${wan(ua)} 万元）。`});}
+  const zero=rows.filter(r=>r['剩余应收金额/涉诉金额（元）']>0 && r['已回款金额（元）']===0);
+  if(zero.length){const za=zero.reduce((s,r)=>s+r['剩余应收金额/涉诉金额（元）'],0);
+    items.push({bad:true, html:`<b>${zero.length}</b> 家客户剩余应收 <b class="em">${wan(za)} 万元</b> 且<b>一笔未回</b>（回款率 0%）。`});}
+  const top=[...rows].sort((a,b)=>b['剩余应收金额/涉诉金额（元）']-a['剩余应收金额/涉诉金额（元）'])[0];
+  if(top) items.push({bad:false, html:`剩余应收最高客户：<b>${top['客户简称']}</b>（${wan(top['剩余应收金额/涉诉金额（元）'])} 万元，${top['跟进状态']}）。`});
+  document.getElementById('insights').innerHTML=
+    `<h3>⚠ 重点风险与行动提示</h3><ul>`+
+    items.map(i=>`<li class="${i.bad?'bad':''}"><span class="dot"></span><span>${i.html}</span></li>`).join('')+
+    `</ul>`;
+}
+
+/* ============ summary + render all ============ */
+function renderAll(){
+  const rows=applyFilters();
+  renderKPIs(rows);
+  renderInsights(rows);
+  renderStatus(rows); renderBiz(rows); renderCust(rows); renderEntity(rows);
+  renderDept(rows); renderAction(rows); renderTop(rows); renderRate(rows);
+  renderAge(rows); renderContract(rows); renderTrend(rows); renderTrendChange(rows);
+  renderTable(rows);
+  const active=FILTER_FIELDS.filter(f=>filters[f.key].size).map(f=>`${f.label}:${[...filters[f.key]].join('/')}`);
+  let s=`当前展示 <b>${rows.length}</b> 家客户（全部 ${DATA.length} 家）`;
+  if(groupMode) s+=' ｜ 明细分组：'+groupMode;
+  if(active.length) s+=' ｜ 筛选：'+active.join('，');
+  if(searchText) s+=' ｜ 搜索：'+searchText;
+  document.getElementById('filterSummary').innerHTML=s;
+}
+
+/* ============ actions ============ */
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  FILTER_FIELDS.forEach(f=>filters[f.key].clear());
+  searchText=''; document.getElementById('searchBox').value='';
+  FILTER_FIELDS.forEach(f=>syncFilterBtn(f.key));
+  renderAll();
+});
+document.getElementById('searchBox').addEventListener('input',e=>{searchText=e.target.value.trim();renderAll();});
+document.getElementById('groupMode').addEventListener('change',e=>{groupMode=e.target.value; collapsedGroups.clear(); renderTable(applyFilters());});
+document.getElementById('csvBtn').addEventListener('click',()=>{
+  const rows=applyFilters();
+  const head=TABLE_COLS.map(c=>c.t).join(',');
+  const body=rows.map(r=>TABLE_COLS.map(c=>{
+    if(c.rate) return (r['回款率']*100).toFixed(1)+'%';
+    const v=r[c.k]; return (v==null?'':v);
+  }).join(',')).join('\n');
+  const blob=new Blob(['\ufeff'+head+'\n'+body],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='应收筛选结果.csv'; a.click();
+});
+document.getElementById('uploadBtn').addEventListener('click',()=>document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change',e=>{
+  const file=e.target.files[0]; if(!file)return; loadSheetJS(()=>parseExcel(file));
+});
+function loadSheetJS(cb){
+  if(window.XLSX){cb();return;}
+  const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+  s.onload=cb; s.onerror=()=>alert('SheetJS 加载失败（需联网）。请联网后重试，或继续使用内置数据。'); document.head.appendChild(s);
+}
+function parseExcel(file){
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const arr=XLSX.utils.sheet_to_json(ws,{defval:null,raw:false});
+      const norm=arr.map(o=>{const r={};for(const k in o){ if(k==null) continue; const std=ALIAS_TO_STD[String(k).trim()]||String(k).trim(); r[std]=o[k]; } return r;});
+      /* 应收总额可缺省（如0723版），由「剩余+已回款」推导。下列为核心必填列 */
+      const need=['客户简称','已回款金额（元）','剩余应收金额/涉诉金额（元）'];
+      if(!need.every(n=>norm[0]&&n in norm[0])){alert('文件列名不匹配，请确认含：客户简称 / 已回款金额（元） / 剩余应收金额/涉诉金额（元）（应收总额可缺省，将自动推导）。');return;}
+      const numKeys=['应收总额','已回款金额（元）','剩余应收金额/涉诉金额（元）','2025年12月底数据','2026年1-6新增应收'];
+      const toNum=v=>{ const n=parseFloat(String(v==null?'':v).replace(/,/g,'')); return isNaN(n)?0:n; };
+      let curStatus='';
+      const records=[];
+      for(const r of norm){
+        const cn=String(r['客户简称']||'').trim();
+        if(cn==='小计'||cn==='合计') continue;                 // 跳过汇总行
+        if(STATUS_WORDS.includes(cn)){ curStatus=cn; continue; } // 分组小标题行（跟进状态）
+        const rec={...r};
+        const rem=toNum(r['剩余应收金额/涉诉金额（元）']);
+        const got=toNum(r['已回款金额（元）']);
+        const rawTotal=r['应收总额'];
+        const hasTotal=(rawTotal!=null && String(rawTotal).trim()!=='' && !isNaN(parseFloat(String(rawTotal).replace(/,/g,''))));
+        rec['应收总额'] = hasTotal ? toNum(rawTotal) : (rem+got);   // 缺省则推导
+        rec['已回款金额（元）']=got;
+        rec['剩余应收金额/涉诉金额（元）']=rem;
+        rec['跟进状态']= curStatus || r['跟进状态'] || '';
+        numKeys.forEach(k=>{ if(k in rec) rec[k]=toNum(rec[k]); });
+        rec['回款率']= (rec['应收总额']>0 ? got/rec['应收总额'] : 0);
+        records.push(rec);
+      }
+      DATA=records;
+      FILTER_FIELDS.forEach(f=>filters[f.key].clear());
+      setupData();
+      buildFilters(); FILTER_FIELDS.forEach(f=>syncFilterBtn(f.key));
+      buildHead();
+      renderAll();
+      const ext=[OPT.baselineField?'2025年底余额':null,OPT.newAddField?'本年1-6新增':null,OPT.ageField?'账龄':null,OPT.contractField?'合同':null,OPT.dateField?'日期':null].filter(Boolean);
+      alert('数据已更新：'+DATA.length+' 家客户'+(ext.length?'\n已识别维度：'+ext.join('、'):'\n（未识别到账龄/合同/日期列）'));
+    }catch(err){alert('解析失败：'+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+document.addEventListener('click',closeMenus);
+
+/* ============ init ============ */
+setupData();
+buildFilters();
+buildHead();
+renderAll();
+</script>
+</body>
+</html>
