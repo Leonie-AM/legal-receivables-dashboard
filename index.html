@@ -240,6 +240,7 @@ const FIELD_ALIASES = {
   '业务归属部门': ['业务归属部门','业务部门'],
   '2025年12月底数据': ['2025年12月底数据','2025年12月底','2025.12应收总额','期初余额','年底余额'],
   '2026年1-6新增应收': ['2026年1-6新增应收','2026.1-6新增应收','2026年1至6月新增应收','本年1-6新增应收','1-6月新增应收'],
+  '对应回收目标': ['对应回收目标','回收目标'],
 };
 const ALIAS_TO_STD = {};
 Object.entries(FIELD_ALIASES).forEach(([std, al])=> al.forEach(a=>{ if(!(a in ALIAS_TO_STD)) ALIAS_TO_STD[a]=std; }));
@@ -290,7 +291,7 @@ const BASE_TABLE_COLS = [
   {k:'是否进入司法程序',t:'司法程序',yn:true},
 ];
 let TABLE_COLS = BASE_TABLE_COLS.slice();
-const OPT = {ageField:null, contractField:null, dateField:null, baselineField:null, newAddField:null};
+const OPT = {ageField:null, contractField:null, dateField:null, baselineField:null, newAddField:null, recoveryTargetField:null};
 
 let DATA = DASH_DATA.records.map(r=>({...r, 回款率: (r['应收总额']>0 ? r['已回款金额（元）']/r['应收总额'] : 0)}));
 /* 统一标签：Excel 源数据中的"应收跟进"在界面上显示为"异常应收跟进" */
@@ -346,6 +347,8 @@ function setupData(){
   }
   OPT.newAddField = find('新增应收','1-6新增','1至6月新增') || null;
   if(OPT.newAddField) TABLE_COLS.push({k:OPT.newAddField, t:'本年1-6新增(万元)', num:true});
+  OPT.recoveryTargetField = find('对应回收目标','回收目标') || null;
+  if(OPT.recoveryTargetField) TABLE_COLS.push({k:OPT.recoveryTargetField, t:'回收目标(万元)', num:true});
 }
 
 /* ============ filter UI ============ */
@@ -401,12 +404,17 @@ function renderKPIs(rows){
   const base=OPT.baselineField?rows.reduce((s,r)=>s+(Number(r[OPT.baselineField])||0),0):0;
   const net=rem-base;
   const netPct=base>0?net/base:0;
+  const recoveryTarget=OPT.recoveryTargetField?rows.reduce((s,r)=>s+(Number(r[OPT.recoveryTargetField])||0),0):0;
+  const recoveryRatio=rem>0?recoveryTarget/rem:0;
+  const recoveryCnt=OPT.recoveryTargetField?rows.filter(r=>(Number(r[OPT.recoveryTargetField])||0)>0).length:0;
   const cards=[
     {cls:'',label:'客户数',value:rows.length,unit:'家',foot:`诉讼流程 ${rows.filter(r=>r['跟进状态']==='诉讼流程').length} 家`},
     {cls:'k-blue',label:'2026年中异常应收总额',value:wan(tot),unit:'万元',foot:wan(tot)+' 万'},
     {cls:'k-green',label:'2026年累计已回款金额',value:wan(got),unit:'万元',foot:wan(got)+' 万'},
     {cls:'k-amber',label:'2026年中剩余异常应收金额',value:wan(rem),unit:'万元',foot:wan(rem)+' 万'},
     {cls:'k-green',label:'整体回款率',value:pct(rate),unit:'',foot:`已回 ${wan(got)} 万 / 应收 ${wan(tot)} 万`},
+    {cls:'k-blue',label:'对应回收目标',value:wan(recoveryTarget),unit:'万元',foot:`${recoveryCnt} 家客户已设目标 · 合计 ${wan(recoveryTarget)} 万`},
+    {cls:recoveryRatio>=0.7?'k-green':recoveryRatio>=0.4?'k-amber':'k-red',label:'回收目标覆盖率',value:pct(recoveryRatio),unit:'',foot:`目标 ${wan(recoveryTarget)} 万 / 剩余 ${wan(rem)} 万`},
     {cls:'k-red',label:'进入司法程序金额',value:wan(litigAmt),unit:'万元',foot:`${litig.length} 家客户已进入司法程序`},
     {cls:'',label:'2025年底余额',value:wan(base),unit:'万元',foot:'2025-12-31 基准'},
     {cls:net>0?'k-red':'k-green',label:'26年至今净变化',value:(net>0?'+':'')+wan(net),unit:'万元',foot:`${net>0?'↑ 逆势增加':'↓ 净回收'} ${pct(Math.abs(netPct))}（vs 年初）`},
@@ -751,7 +759,7 @@ function parseExcel(file){
       buildFilters(); FILTER_FIELDS.forEach(f=>syncFilterBtn(f.key));
       buildHead();
       renderAll();
-      const ext=[OPT.baselineField?'2025年底余额':null,OPT.newAddField?'本年1-6新增':null,OPT.ageField?'账龄':null,OPT.contractField?'合同':null,OPT.dateField?'日期':null].filter(Boolean);
+      const ext=[OPT.baselineField?'2025年底余额':null,OPT.newAddField?'本年1-6新增':null,OPT.recoveryTargetField?'回收目标':null,OPT.ageField?'账龄':null,OPT.contractField?'合同':null,OPT.dateField?'日期':null].filter(Boolean);
       alert('数据已更新：'+DATA.length+' 家客户'+(ext.length?'\n已识别维度：'+ext.join('、'):'\n（未识别到账龄/合同/日期列）'));
     }catch(err){alert('解析失败：'+err.message);}
   };
