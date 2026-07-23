@@ -200,9 +200,11 @@
       <h3>应收余额趋势 · 净变化（2025年底 → 现在） <span class="hint">单位：万元（红=余额上升/恶化，绿=余额下降/改善）</span></h3>
       <div class="chart-box" style="height:430px;"><canvas id="cTrendChange"></canvas></div>
     </div>
+    <div class="card wide">
+      <h3>回收目标占比不足 · 低于100%的客户 <span class="hint">单位：%</span></h3>
+      <div class="chart-box" style="height:400px;"><canvas id="cRecoveryGap"></canvas></div>
+    </div>
   </section>
-
-  <!-- Table -->
   <section class="tablecard">
     <h3>明细数据 <span class="count-tag" id="tableCount"></span></h3>
     <div class="tablewrap">
@@ -241,6 +243,7 @@ const FIELD_ALIASES = {
   '2025年12月底数据': ['2025年12月底数据','2025年12月底','2025.12应收总额','期初余额','年底余额'],
   '2026年1-6新增应收': ['2026年1-6新增应收','2026.1-6新增应收','2026年1至6月新增应收','本年1-6新增应收','1-6月新增应收'],
   '对应回收目标': ['对应回收目标','回收目标'],
+  '回收目标占比': ['回收目标占比'],
 };
 const ALIAS_TO_STD = {};
 Object.entries(FIELD_ALIASES).forEach(([std, al])=> al.forEach(a=>{ if(!(a in ALIAS_TO_STD)) ALIAS_TO_STD[a]=std; }));
@@ -291,7 +294,7 @@ const BASE_TABLE_COLS = [
   {k:'是否进入司法程序',t:'司法程序',yn:true},
 ];
 let TABLE_COLS = BASE_TABLE_COLS.slice();
-const OPT = {ageField:null, contractField:null, dateField:null, baselineField:null, newAddField:null, recoveryTargetField:null};
+const OPT = {ageField:null, contractField:null, dateField:null, baselineField:null, newAddField:null, recoveryTargetField:null, recoveryRatioField:null};
 
 let DATA = DASH_DATA.records.map(r=>({...r, 回款率: (r['应收总额']>0 ? r['已回款金额（元）']/r['应收总额'] : 0)}));
 /* 统一标签：Excel 源数据中的"应收跟进"在界面上显示为"异常应收跟进" */
@@ -349,6 +352,8 @@ function setupData(){
   if(OPT.newAddField) TABLE_COLS.push({k:OPT.newAddField, t:'本年1-6新增(万元)', num:true});
   OPT.recoveryTargetField = find('对应回收目标','回收目标') || null;
   if(OPT.recoveryTargetField) TABLE_COLS.push({k:OPT.recoveryTargetField, t:'回收目标(万元)', num:true});
+  OPT.recoveryRatioField = find('回收目标占比') || null;
+  if(OPT.recoveryRatioField) TABLE_COLS.push({k:OPT.recoveryRatioField, t:'目标占比', pct:true});
 }
 
 /* ============ filter UI ============ */
@@ -568,6 +573,20 @@ function renderTrendChange(rows){
     {horizontal:true, unit:'万', labels:true, legend:false,
      tipCb:c=>(c.parsed.x>0?'+':'')+c.parsed.x.toLocaleString('zh-CN')+' 万'}));
 }
+function renderRecoveryGap(rows){
+  if(!OPT.recoveryRatioField){ placeholder('cRecoveryGap','当前数据无「回收目标占比」列。\n\n上传含该列的明细后，此处自动展示回收目标占比不足的客户。'); return; }
+  const arr=rows.map(r=>({name:r['客户简称'], v:(Number(r[OPT.recoveryRatioField])||0)*100}))
+    .filter(x=>x.v>0 && x.v<100)
+    .sort((a,b)=>a.v-b.v);
+  if(!arr.length){ placeholder('cRecoveryGap','所有客户回收目标占比均为100%，无需关注。'); return; }
+  const labels=arr.map(x=>x.name);
+  const data=arr.map(x=>Math.round(x.v*10)/10);
+  const colors=arr.map(x=>x.v>=70?'#f59e0b':x.v>=30?'#eab308':'#ef4444');
+  ensureCanvas('cRecoveryGap');
+  makeChart('cRecoveryGap',barCfg(labels,[{label:'回收目标占比',data,backgroundColor:colors}],
+    {horizontal:true, unit:'%', labels:true, legend:false,
+     tipCb:c=>c.parsed.x.toFixed(1)+'%'}));
+}
 
 /* ============ table ============ */
 function buildHead(){
@@ -596,6 +615,7 @@ function rowHtml(r){
     if(c.k==='客户简称') return `<td class="txt">${r['客户简称']}</td>`;
     if(c.num) return `<td>${wan(r[c.k])}</td>`;
     if(c.rate) return `<td class="${rateClass(r['回款率'])}">${pct(r['回款率'])}</td>`;
+    if(c.pct){ const v=(Number(r[c.k])||0)*100; return `<td>${v.toFixed(1)}%</td>`; }
     if(c.net){const v=Number(r[c.k])||0;const cls=v>0?'rate-bad':v<0?'rate-good':'rate-mid';return `<td class="${cls}">${(v>0?'+':'')+wan(v)}</td>`;}
     if(c.yn){const v=r[c.k];return `<td class="${v==='是'?'yn-y':'yn-n'}">${v}</td>`;}
     return `<td class="txt">${r[c.k]??''}</td>`;
@@ -682,6 +702,7 @@ function renderAll(){
   renderInsights(rows);
   renderStatus(rows); renderBiz(rows); renderCust(rows);
   renderDept(rows); renderAction(rows); renderTop(rows); renderTrendChange(rows);
+  renderRecoveryGap(rows);
   renderTable(rows);
   const active=FILTER_FIELDS.filter(f=>filters[f.key].size).map(f=>`${f.label}:${[...filters[f.key]].join('/')}`);
   let s=`当前展示 <b>${rows.length}</b> 家客户（全部 ${DATA.length} 家）`;
