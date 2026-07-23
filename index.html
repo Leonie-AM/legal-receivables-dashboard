@@ -460,7 +460,7 @@ function drawRecoveryGapLabels(chart){
     const y = tgtEl.y;
     // 1. target INSIDE colored segment (always, white text)
     if(tgt > 0 && tgtEl.width > 18){
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#1f2937';
       ctx.font = 'bold 11px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('目标 ' + tgt.toLocaleString('zh-CN') + ' 万', tgtEl.x, y);
