@@ -580,22 +580,18 @@ function renderRecoveryGap(rows){
     const rem=(r['剩余应收金额/涉诉金额（元）']||0)/10000;
     const tgt=(Number(r[OPT.recoveryTargetField])||0)/10000;
     return {name:r['客户简称'], ratio, rem:Math.round(rem), tgt:Math.round(tgt)};
-  }).filter(x=>x.ratio>=0 && x.ratio<100)
+  }).filter(x=>x.ratio>=0 && x.ratio<100 && x.rem>0)
     .sort((a,b)=>a.ratio-b.ratio);
   if(!arr.length){ placeholder('cRecoveryGap','所有客户回收目标占比均为100%，无需关注。'); return; }
   const labels=arr.map(x=>x.name);
-  const remData=arr.map(x=>x.rem);
-  const tgtData=arr.map(x=>x.tgt);
-  const ratioColors=arr.map(x=>x.ratio<30?'#ef4444':x.ratio<70?'#eab308':'#f59e0b');
+  const data=arr.map(x=>x.rem);
+  const colors=arr.map(x=>x.ratio<30?'#ef4444':x.ratio<70?'#eab308':'#f59e0b');
   ensureCanvas('cRecoveryGap');
-  makeChart('cRecoveryGap',barCfg(labels,[
-    {label:'剩余应收',data:remData,backgroundColor:'#e5e7eb'},
-    {label:'回收目标',data:tgtData,backgroundColor:ratioColors}
-  ],{horizontal:true, unit:'万', labels:true,
+  makeChart('cRecoveryGap',barCfg(labels,[{label:'剩余应收',data,backgroundColor:colors}],
+    {horizontal:true, unit:'万', labels:true, legend:false,
      tipCb:c=>{
-       const idx=c.dataIndex; const a=arr[idx];
-       const val=c.parsed.x;
-       return c.dataset.label+': '+val.toLocaleString('zh-CN')+' 万  |  占比: '+a.ratio.toFixed(1)+'%';
+       const a=arr[c.dataIndex];
+       return a.name+'  剩余:'+a.rem+'万  目标:'+a.tgt+'万  占比:'+a.ratio.toFixed(1)+'%';
      }}));
 }
 
