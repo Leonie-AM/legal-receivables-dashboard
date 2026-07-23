@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>法务应收及诉讼数据看板</title>
+<title>法务异常应收及诉讼数据追踪看板</title>
 <script src="chart.umd.min.js"></script>
 <style>
   :root{
@@ -136,7 +136,7 @@
 <body>
 <header class="topbar">
   <div>
-    <h1>法务应收及诉讼数据看板</h1>
+    <h1>法务异常应收及诉讼数据追踪看板</h1>
     <div class="sub">异常应收跟踪 · 多维度筛选与分析</div>
   </div>
   <div class="src">数据基准日：2026-07-23<br/>来源：重点应收及诉讼数据0723.xlsx（分组嵌套版·含 2025 年底期初余额与 2026 年 1–6 月新增应收）</div>
@@ -185,10 +185,6 @@
       <div class="chart-box"><canvas id="cCust"></canvas></div>
     </div>
     <div class="card">
-      <h3>我司签约主体 · 剩余应收 <span class="hint">单位：万元</span></h3>
-      <div class="chart-box"><canvas id="cEntity"></canvas></div>
-    </div>
-    <div class="card">
       <h3>销售归属部门 · TOP剩余应收 <span class="hint">单位：万元</span></h3>
       <div class="chart-box"><canvas id="cDept"></canvas></div>
     </div>
@@ -199,22 +195,6 @@
     <div class="card wide">
       <h3>重点客户 · 剩余应收 TOP 10 <span class="hint">单位：万元（红=尚有余额）</span></h3>
       <div class="chart-box" style="height:340px;"><canvas id="cTop"></canvas></div>
-    </div>
-    <div class="card wide">
-      <h3>责任销售 · 回款率 <span class="hint">已回款/应收总额（%）</span></h3>
-      <div class="chart-box" style="height:300px;"><canvas id="cRate"></canvas></div>
-    </div>
-    <div class="card">
-      <h3>账龄维度 · 剩余应收 <span class="hint">需含【账龄区间】列</span></h3>
-      <div class="chart-box"><canvas id="cAge"></canvas></div>
-    </div>
-    <div class="card">
-      <h3>重点合同 · 剩余应收 TOP10 <span class="hint">需含【合同】列</span></h3>
-      <div class="chart-box"><canvas id="cContract"></canvas></div>
-    </div>
-    <div class="card wide">
-      <h3>应收发生趋势 · 按月 <span class="hint">需含日期/月份列</span></h3>
-      <div class="chart-box" style="height:280px;"><canvas id="cTrend"></canvas></div>
     </div>
     <div class="card wide">
       <h3>应收余额趋势 · 净变化（2025年底 → 现在） <span class="hint">单位：万元（红=余额上升/恶化，绿=余额下降/改善）</span></h3>
@@ -263,10 +243,10 @@ const FIELD_ALIASES = {
 };
 const ALIAS_TO_STD = {};
 Object.entries(FIELD_ALIASES).forEach(([std, al])=> al.forEach(a=>{ if(!(a in ALIAS_TO_STD)) ALIAS_TO_STD[a]=std; }));
-const STATUS_COLOR = {'应收跟进':'#2563eb','停滞状态':'#f59e0b','诉讼流程':'#ef4444'};
-const STATUS_PILL  = {'应收跟进':'blue','停滞状态':'amber','诉讼流程':'red'};
+const STATUS_COLOR = {'异常应收跟进':'#2563eb','停滞状态':'#f59e0b','诉讼流程':'#ef4444'};
+const STATUS_PILL  = {'异常应收跟进':'blue','停滞状态':'amber','诉讼流程':'red'};
 /* 分组嵌套布局：跟进状态被压进「客户简称」列当分组小标题（如0723版）。解析时按此白名单还原为各行属性。 */
-const STATUS_WORDS = ['应收跟进','停滞状态','诉讼流程'];
+const STATUS_WORDS = ['应收跟进','异常应收跟进','停滞状态','诉讼流程'];
 const PALETTE = ['#2563eb','#0ea5e9','#14b8a6','#22c55e','#eab308','#f59e0b','#ef4444','#ec4899','#8b5cf6','#6366f1','#0891b2','#65a30d','#a855f7','#0d9488'];
 const BASE_FILTER_FIELDS = [
   {key:'跟进状态',label:'跟进状态'},
@@ -313,6 +293,8 @@ let TABLE_COLS = BASE_TABLE_COLS.slice();
 const OPT = {ageField:null, contractField:null, dateField:null, baselineField:null, newAddField:null};
 
 let DATA = DASH_DATA.records.map(r=>({...r, 回款率: (r['应收总额']>0 ? r['已回款金额（元）']/r['应收总额'] : 0)}));
+/* 统一标签：Excel 源数据中的"应收跟进"在界面上显示为"异常应收跟进" */
+DATA.forEach(r=>{ if(r['跟进状态']==='应收跟进') r['跟进状态']='异常应收跟进'; });
 const filters = {};
 BASE_FILTER_FIELDS.forEach(f=>filters[f.key]=new Set());
 let searchText = '';
@@ -421,9 +403,9 @@ function renderKPIs(rows){
   const netPct=base>0?net/base:0;
   const cards=[
     {cls:'',label:'客户数',value:rows.length,unit:'家',foot:`诉讼流程 ${rows.filter(r=>r['跟进状态']==='诉讼流程').length} 家`},
-    {cls:'k-blue',label:'应收总额',value:wan(tot),unit:'万元',foot:wan(tot)+' 万'},
-    {cls:'k-green',label:'已回款金额',value:wan(got),unit:'万元',foot:wan(got)+' 万'},
-    {cls:'k-amber',label:'剩余应收金额',value:wan(rem),unit:'万元',foot:wan(rem)+' 万'},
+    {cls:'k-blue',label:'2026年中异常应收总额',value:wan(tot),unit:'万元',foot:wan(tot)+' 万'},
+    {cls:'k-green',label:'2026年累计已回款金额',value:wan(got),unit:'万元',foot:wan(got)+' 万'},
+    {cls:'k-amber',label:'2026年中剩余异常应收金额',value:wan(rem),unit:'万元',foot:wan(rem)+' 万'},
     {cls:'k-green',label:'整体回款率',value:pct(rate),unit:'',foot:`已回 ${wan(got)} 万 / 应收 ${wan(tot)} 万`},
     {cls:'k-red',label:'进入司法程序金额',value:wan(litigAmt),unit:'万元',foot:`${litig.length} 家客户已进入司法程序`},
     {cls:'',label:'2025年底余额',value:wan(base),unit:'万元',foot:'2025-12-31 基准'},
@@ -533,14 +515,6 @@ function renderCust(rows){
       plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}},
         tooltip:{callbacks:{label:c=>{const sum=data.reduce((a,b)=>a+b,0);return c.label+': '+c.parsed.toLocaleString()+' 万元 ('+(c.parsed/sum*100).toFixed(1)+'%)';}}}}}});
 }
-function renderEntity(rows){
-  const m=aggSum(rows,'我司签约主体','剩余应收金额/涉诉金额（元）');
-  let labels=Object.keys(m).sort((a,b)=>m[b]-m[a]);
-  let data=labels.map(k=>Math.round(m[k]/10000));
-  makeChart('cEntity',barCfg(labels,[
-    {label:'剩余应收',data,backgroundColor:labels.map((_,i)=>PALETTE[i%PALETTE.length])}
-  ],{unit:'万', labels:true}));
-}
 function renderDept(rows){
   const m=aggSum(rows,'销售归属部门','剩余应收金额/涉诉金额（元）');
   let labels=Object.keys(m).sort((a,b)=>m[b]-m[a]).slice(0,10);
@@ -572,59 +546,6 @@ function renderTop(rows){
   makeChart('cTop',barCfg(labels,[
     {label:'剩余应收',data,backgroundColor:colors}
   ],{horizontal:true, unit:'万', labels:true, legend:false, tipCb:c=>(c.parsed.x).toLocaleString()+' 万'}));
-}
-function renderRate(rows){
-  const m={}; const got={};
-  rows.forEach(r=>{const k=r['责任销售']; if(!k)return; m[k]=(m[k]||0)+r['应收总额']; got[k]=(got[k]||0)+r['已回款金额（元）'];});
-  let entries=Object.keys(m).map(k=>[k, m[k]>0?got[k]/m[k]:0]).sort((a,b)=>b[1]-a[1]);
-  const labels=entries.map(e=>e[0]);
-  const data=entries.map(e=>+(e[1]*100).toFixed(1));
-  const colors=data.map(v=>v>=80?'#16a34a':v>=40?'#f59e0b':'#ef4444');
-  makeChart('cRate',barCfg(labels,[
-    {label:'回款率',data,backgroundColor:colors}
-  ],{unit:'%', labels:true, legend:false, tipCb:c=>c.parsed.y.toFixed(1)+'%'}));
-}
-function renderAge(rows){
-  if(!OPT.ageField){ placeholder('cAge','当前数据尚无「账龄区间 / 账期」列。\n\n上传包含账龄字段的明细后，此处自动展示账龄分布与风险结构。'); return; }
-  const m=aggSum(rows,OPT.ageField,'剩余应收金额/涉诉金额（元）');
-  const labels=Object.keys(m);
-  const data=labels.map(k=>Math.round(m[k]/10000));
-  const colors=labels.map((_,i)=>PALETTE[i%PALETTE.length]);
-  ensureCanvas('cAge');
-  makeChart('cAge',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}},
-        tooltip:{callbacks:{label:c=>{const s=data.reduce((a,b)=>a+b,0);return c.label+': '+c.parsed.toLocaleString()+' 万元 ('+(c.parsed/s*100).toFixed(1)+'%)';}}}}}});
-}
-function renderContract(rows){
-  if(!OPT.contractField){ placeholder('cContract','当前数据尚无「合同号 / 合同名称」列。\n\n上传包含合同字段的明细后，此处自动展示重点合同剩余应收排名。'); return; }
-  const m=aggSum(rows,OPT.contractField,'剩余应收金额/涉诉金额（元）');
-  let labels=Object.keys(m).sort((a,b)=>m[b]-m[a]).slice(0,10);
-  let data=labels.map(k=>Math.round(m[k]/10000));
-  ensureCanvas('cContract');
-  makeChart('cContract',barCfg(labels,[
-    {label:'剩余应收',data,backgroundColor:labels.map((_,i)=>PALETTE[i%PALETTE.length])}
-  ],{horizontal:true, unit:'万', labels:true, legend:false, tipCb:c=>(c.parsed.x).toLocaleString()+' 万'}));
-}
-function monthKey(v){
-  const s=String(v).trim();
-  const m=s.match(/(\d{4})[-/年.](\d{1,2})/);
-  if(m) return m[1]+'-'+m[2].padStart(2,'0');
-  const d=new Date(s);
-  if(!isNaN(d)) return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-  return null;
-}
-function renderTrend(rows){
-  if(!OPT.dateField){ placeholder('cTrend','当前数据尚无「记账日期 / 应收确认月份」列。\n\n上传包含日期字段的明细后，此处自动展示按月应收发生趋势。'); return; }
-  const months={};
-  rows.forEach(r=>{ const v=r[OPT.dateField]; if(!v)return; const m=monthKey(v); if(m) months[m]=(months[m]||0)+Number(r['应收总额']||0); });
-  const labels=Object.keys(months).sort();
-  const data=labels.map(k=>Math.round(months[k]/10000));
-  ensureCanvas('cTrend');
-  makeChart('cTrend',{type:'line',data:{labels,datasets:[{label:'应收总额',data,fill:true,backgroundColor:'rgba(37,99,235,.12)',borderColor:'#2563eb',tension:.3,pointRadius:3}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y.toLocaleString()+' 万元'}}},
-      scales:{x:{grid:{display:false}},y:{grid:{color:'#f0f0f0'},ticks:{callback:v=>v.toLocaleString()}}}}});
 }
 function renderTrendChange(rows){
   if(!OPT.baselineField){ placeholder('cTrendChange','当前数据无「2025年12月底数据」列，无法计算净变化趋势。\n\n上传含该基准列的明细后，此处自动展示各客户余额净变化。'); return; }
@@ -751,9 +672,8 @@ function renderAll(){
   const rows=applyFilters();
   renderKPIs(rows);
   renderInsights(rows);
-  renderStatus(rows); renderBiz(rows); renderCust(rows); renderEntity(rows);
-  renderDept(rows); renderAction(rows); renderTop(rows); renderRate(rows);
-  renderAge(rows); renderContract(rows); renderTrend(rows); renderTrendChange(rows);
+  renderStatus(rows); renderBiz(rows); renderCust(rows);
+  renderDept(rows); renderAction(rows); renderTop(rows); renderTrendChange(rows);
   renderTable(rows);
   const active=FILTER_FIELDS.filter(f=>filters[f.key].size).map(f=>`${f.label}:${[...filters[f.key]].join('/')}`);
   let s=`当前展示 <b>${rows.length}</b> 家客户（全部 ${DATA.length} 家）`;
@@ -824,6 +744,8 @@ function parseExcel(file){
         records.push(rec);
       }
       DATA=records;
+      /* 统一标签：Excel 源数据中的"应收跟进"在界面上显示为"异常应收跟进" */
+      DATA.forEach(r=>{ if(r['跟进状态']==='应收跟进') r['跟进状态']='异常应收跟进'; });
       FILTER_FIELDS.forEach(f=>filters[f.key].clear());
       setupData();
       buildFilters(); FILTER_FIELDS.forEach(f=>syncFilterBtn(f.key));
