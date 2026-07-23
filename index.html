@@ -201,8 +201,8 @@
       <div class="chart-box" style="height:430px;"><canvas id="cTrendChange"></canvas></div>
     </div>
     <div class="card wide">
-      <h3>回收目标占比不足 · 低于100%的客户 <span class="hint">单位：%</span></h3>
-      <div class="chart-box" style="height:400px;"><canvas id="cRecoveryGap"></canvas></div>
+      <h3>回收目标占比不足 · 低于100%的客户 <span class="hint">灰色=剩余应收，彩色=回收目标</span></h3>
+      <div class="chart-box" style="height:480px;"><canvas id="cRecoveryGap"></canvas></div>
     </div>
   </section>
   <section class="tablecard">
@@ -575,17 +575,28 @@ function renderTrendChange(rows){
 }
 function renderRecoveryGap(rows){
   if(!OPT.recoveryRatioField){ placeholder('cRecoveryGap','当前数据无「回收目标占比」列。\n\n上传含该列的明细后，此处自动展示回收目标占比不足的客户。'); return; }
-  const arr=rows.map(r=>({name:r['客户简称'], v:(Number(r[OPT.recoveryRatioField])||0)*100}))
-    .filter(x=>x.v>0 && x.v<100)
-    .sort((a,b)=>a.v-b.v);
+  const arr=rows.map(r=>{
+    const ratio=(Number(r[OPT.recoveryRatioField])||0)*100;
+    const rem=(r['剩余应收金额/涉诉金额（元）']||0)/10000;
+    const tgt=(Number(r[OPT.recoveryTargetField])||0)/10000;
+    return {name:r['客户简称'], ratio, rem:Math.round(rem), tgt:Math.round(tgt)};
+  }).filter(x=>x.ratio>=0 && x.ratio<100)
+    .sort((a,b)=>a.ratio-b.ratio);
   if(!arr.length){ placeholder('cRecoveryGap','所有客户回收目标占比均为100%，无需关注。'); return; }
   const labels=arr.map(x=>x.name);
-  const data=arr.map(x=>Math.round(x.v*10)/10);
-  const colors=arr.map(x=>x.v>=70?'#f59e0b':x.v>=30?'#eab308':'#ef4444');
+  const remData=arr.map(x=>x.rem);
+  const tgtData=arr.map(x=>x.tgt);
+  const ratioColors=arr.map(x=>x.ratio<30?'#ef4444':x.ratio<70?'#eab308':'#f59e0b');
   ensureCanvas('cRecoveryGap');
-  makeChart('cRecoveryGap',barCfg(labels,[{label:'回收目标占比',data,backgroundColor:colors}],
-    {horizontal:true, unit:'%', labels:true, legend:false,
-     tipCb:c=>c.parsed.x.toFixed(1)+'%'}));
+  makeChart('cRecoveryGap',barCfg(labels,[
+    {label:'剩余应收',data:remData,backgroundColor:'#e5e7eb'},
+    {label:'回收目标',data:tgtData,backgroundColor:ratioColors}
+  ],{horizontal:true, unit:'万', labels:true,
+     tipCb:c=>{
+       const idx=c.dataIndex; const a=arr[idx];
+       const val=c.parsed.x;
+       return c.dataset.label+': '+val.toLocaleString('zh-CN')+' 万  |  占比: '+a.ratio.toFixed(1)+'%';
+     }}));
 }
 
 /* ============ table ============ */
@@ -615,7 +626,7 @@ function rowHtml(r){
     if(c.k==='客户简称') return `<td class="txt">${r['客户简称']}</td>`;
     if(c.num) return `<td>${wan(r[c.k])}</td>`;
     if(c.rate) return `<td class="${rateClass(r['回款率'])}">${pct(r['回款率'])}</td>`;
-    if(c.pct){ const v=(Number(r[c.k])||0)*100; return `<td>${v.toFixed(1)}%</td>`; }
+    if(c.pct){ const v=(Number(r[c.k])||0)*100; const cls=v<100?'rate-bad':''; return `<td class="${cls}">${v.toFixed(1)}%</td>`; }
     if(c.net){const v=Number(r[c.k])||0;const cls=v>0?'rate-bad':v<0?'rate-good':'rate-mid';return `<td class="${cls}">${(v>0?'+':'')+wan(v)}</td>`;}
     if(c.yn){const v=r[c.k];return `<td class="${v==='是'?'yn-y':'yn-n'}">${v}</td>`;}
     return `<td class="txt">${r[c.k]??''}</td>`;
