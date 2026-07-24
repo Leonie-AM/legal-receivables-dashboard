@@ -759,7 +759,7 @@ function renderRecoveryGap(rows){
   cfg.options.scales.y.ticks.callback = function(v, i){
     const a = arr[i];
     if(!a) return '';
-    return [a.name, '剩余 ' + a.rem.toLocaleString('zh-CN') + ' 万'];
+    return [a.name, '总计 ' + a.rem.toLocaleString('zh-CN') + ' 万'];
   };
   cfg.options.scales.y.ticks.font = {size: 11, weight: 'bold'};
   makeChart('cRecoveryGap', cfg);
