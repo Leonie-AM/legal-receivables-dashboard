@@ -620,6 +620,21 @@ function renderBiz(rows){
       const pct=t>0?(v/t*100):0;
       return c.dataset.label+': '+v.toLocaleString('zh-CN')+' 万  ('+pct.toFixed(1)+'%)';
     }}));
+  // y-axis: 2-line label = 分类名 + 总数
+  const bizCfg = barCfg(labels,datasets,{horizontal:true, unit:'万', labels:false, stacked:true,
+    tipCb:c=>{
+      const v=c.dataset.data[c.dataIndex]||0, t=catTotals[c.dataIndex]||0;
+      const pct=t>0?(v/t*100):0;
+      return c.dataset.label+': '+v.toLocaleString('zh-CN')+' 万  ('+pct.toFixed(1)+'%)';
+    }});
+  bizCfg.options.layout = bizCfg.options.layout || {};
+  bizCfg.options.layout.padding = Object.assign({left: 100}, bizCfg.options.layout.padding);
+  bizCfg.options.scales.y.ticks.callback = function(v, i){
+    const t = catTotals[i];
+    return [labels[i], '总计 ' + (t||0).toLocaleString('zh-CN') + ' 万'];
+  };
+  bizCfg.options.scales.y.ticks.font = {size: 11};
+  makeChart('cBiz', bizCfg);
   charts['cBiz'].$bdArr = {labels, totals, statuses};
 }
 function renderCust(rows){
@@ -656,6 +671,21 @@ function renderDept(rows){
       const pct=t>0?(v/t*100):0;
       return c.dataset.label+': '+v.toLocaleString('zh-CN')+' 万  ('+pct.toFixed(1)+'%)';
     }}));
+  // y-axis: 2-line label = 部门名 + 总数
+  const deptCfg = barCfg(labels,datasets,{horizontal:true, unit:'万', labels:false, stacked:true,
+    tipCb:c=>{
+      const v=c.dataset.data[c.dataIndex]||0, t=deptTotals[c.dataIndex]||0;
+      const pct=t>0?(v/t*100):0;
+      return c.dataset.label+': '+v.toLocaleString('zh-CN')+' 万  ('+pct.toFixed(1)+'%)';
+    }});
+  deptCfg.options.layout = deptCfg.options.layout || {};
+  deptCfg.options.layout.padding = Object.assign({left: 100}, deptCfg.options.layout.padding);
+  deptCfg.options.scales.y.ticks.callback = function(v, i){
+    const t = deptTotals[i];
+    return [labels[i], '总计 ' + (t||0).toLocaleString('zh-CN') + ' 万'];
+  };
+  deptCfg.options.scales.y.ticks.font = {size: 11};
+  makeChart('cDept', deptCfg);
   charts['cDept'].$bdArr = {labels, totals, statuses};
 }
 function renderAction(rows){
