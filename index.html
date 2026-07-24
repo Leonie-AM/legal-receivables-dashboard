@@ -696,14 +696,16 @@ function renderAction(rows){
   const lsYes = rows.filter(r=>r['律师是否介入']==='是').reduce((s,r)=>s+r['剩余应收金额/涉诉金额（元）'],0)/10000;
   const lsNo  = rows.filter(r=>r['律师是否介入']==='否').reduce((s,r)=>s+r['剩余应收金额/涉诉金额（元）'],0)/10000;
   const labels = ['法务已介入','法务未介入','律师已介入','律师未介入'];
-  const data = [Math.round(fwYes), Math.round(fwNo), Math.round(lsYes), Math.round(lsNo)];
-  const bg = ['#16a34a','#e5e7eb','#2563eb','#e5e7eb'];
-  makeChart('cAction',{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:bg}]},
-    options:{responsive:true,maintainAspectRatio:false,
+  // 外环=法务介入，内环=律师介入
+  makeChart('cAction',{type:'doughnut',data:{labels,datasets:[
+    {data:[fwYes,fwNo],backgroundColor:['#16a34a','#bbf7d0'],weight:1},
+    {data:[lsYes,lsNo],backgroundColor:['#2563eb','#bfdbfe'],weight:1}
+  ]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'40%',
       plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}},
         tooltip:{callbacks:{label:c=>{
-          const sum=data.reduce((a,b)=>a+b,0);
-          return c.label+': '+c.parsed.toLocaleString()+' 万元 ('+(c.parsed/sum*100).toFixed(1)+'%)';
+          const sum=c.dataset.data.reduce((a,b)=>a+b,0);
+          return c.label+': '+Math.round(c.parsed).toLocaleString('zh-CN')+' 万元 ('+(c.parsed/sum*100).toFixed(1)+'%)';
         }}}}}});
 }
 function renderTop(rows){
