@@ -466,22 +466,13 @@ function drawBizDeptLabels(chart){
       const segWidth = pxEnd - pxStart;
       const labelText = v.toLocaleString('zh-CN') + ' 万';
       if(segWidth > 50){
-        // segment wide enough - label INSIDE, white text
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText(labelText, segCenter, y);
       } else if(segWidth > 18){
-        // segment narrow but visible - label INSIDE, smaller dark text
-        ctx.fillStyle = '#1f2937';
-        ctx.font = '10px sans-serif';
-        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText(labelText, segCenter, y);
       } else {
-        // segment very narrow - label OUTSIDE to right
-        ctx.fillStyle = STATUS_COLOR[ds.label] || '#1f2937';
-        ctx.font = '11px sans-serif';
-        ctx.textAlign = 'left';
+        ctx.fillStyle = '#1f2937'; ctx.font = '11px sans-serif'; ctx.textAlign = 'left';
         ctx.fillText(labelText, pxEnd + 4, y);
       }
       xStart = xEnd;
