@@ -705,6 +705,7 @@ function renderAction(rows){
           const sum=data.reduce((a,b)=>a+b,0);
           return c.label+': '+c.parsed.toLocaleString()+' 万元 ('+(c.parsed/sum*100).toFixed(1)+'%)';
         }}}}}});
+}
 function renderTop(rows){
   const sorted=[...rows].sort((a,b)=>b['剩余应收金额/涉诉金额（元）']-a['剩余应收金额/涉诉金额（元）']).slice(0,10);
   const labels=sorted.map(r=>r['客户简称']).reverse();
