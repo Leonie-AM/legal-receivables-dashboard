@@ -420,6 +420,7 @@ function renderKPIs(rows){
     {cls:'k-green',label:'整体回款率',value:pct(rate),unit:'',foot:`已回 ${wan(got)} 万 / 应收 ${wan(tot)} 万`},
     {cls:'k-blue',label:'对应回收目标',value:wan(recoveryTarget),unit:'万元',foot:`${recoveryCnt} 家客户已设目标 · 合计 ${wan(recoveryTarget)} 万`},
     {cls:recoveryRatio>=0.7?'k-green':recoveryRatio>=0.4?'k-amber':'k-red',label:'回收目标覆盖率',value:pct(recoveryRatio),unit:'',foot:`目标 ${wan(recoveryTarget)} 万 / 剩余 ${wan(rem)} 万`},
+    {cls:'k-red',label:'预计无法回收',value:wan(rem-recoveryTarget),unit:'万元',foot:`剩余 ${wan(rem)} 万 - 目标 ${wan(recoveryTarget)} 万`},
     {cls:'k-red',label:'进入司法程序金额',value:wan(litigAmt),unit:'万元',foot:`${litig.length} 家客户已进入司法程序`},
     {cls:'',label:'2025年底余额',value:wan(base),unit:'万元',foot:'2025-12-31 基准'},
     {cls:net>0?'k-red':'k-green',label:'26年至今净变化',value:(net>0?'+':'')+wan(net),unit:'万元',foot:`${net>0?'↑ 逆势增加':'↓ 净回收'} ${pct(Math.abs(netPct))}（vs 年初）`},
