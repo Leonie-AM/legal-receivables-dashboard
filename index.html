@@ -178,7 +178,7 @@
     </div>
     <div class="card">
       <h3>业务类型 · 剩余应收 <span class="hint">单位：万元</span></h3>
-      <div class="chart-box"><canvas id="cBiz"></canvas></div>
+      <div class="chart-box" style="height:400px;"><canvas id="cBiz"></canvas></div>
     </div>
     <div class="card">
       <h3>客户类型 · 剩余应收占比 <span class="hint">单位：万元</span></h3>
@@ -186,7 +186,7 @@
     </div>
     <div class="card">
       <h3>销售归属部门 · TOP剩余应收 <span class="hint">单位：万元</span></h3>
-      <div class="chart-box"><canvas id="cDept"></canvas></div>
+      <div class="chart-box" style="height:400px;"><canvas id="cDept"></canvas></div>
     </div>
     <div class="card">
       <h3>法务 & 律师介入 · 剩余应收占比 <span class="hint">单位：万元</span></h3>
@@ -631,9 +631,11 @@ function renderBiz(rows){
   bizCfg.options.layout.padding = Object.assign({left: 100}, bizCfg.options.layout.padding);
   bizCfg.options.scales.y.ticks.callback = function(v, i){
     const t = catTotals[i];
-    return [labels[i], '总计 ' + (t||0).toLocaleString('zh-CN') + ' 万'];
+    return [labels[i] || '', '总计 ' + (t||0).toLocaleString('zh-CN') + ' 万'];
   };
   bizCfg.options.scales.y.ticks.font = {size: 11};
+  bizCfg.options.scales.y.ticks.padding = 6;
+  bizCfg.options.scales.y.afterFit = function(scale){ scale.width = 110; };
   makeChart('cBiz', bizCfg);
   charts['cBiz'].$bdArr = {labels, totals, statuses};
 }
