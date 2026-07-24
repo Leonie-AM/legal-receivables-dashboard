@@ -443,6 +443,52 @@ function placeholder(id,msg){
   document.getElementById(id).parentElement.innerHTML='<div class="empty" style="white-space:pre-line;padding:46px 18px;line-height:1.7;">'+msg+'</div>';
 }
 /* 在柱状图上直接绘制数值标签（无外部依赖），便于现场核对金额 */
+function drawBizDeptLabels(chart){
+  if(!chart.$bdArr) return;
+  const ctx = chart.ctx;
+  const xScale = chart.scales.x;
+  const yScale = chart.scales.y;
+  const datasets = chart.data.datasets;
+  const labels = chart.data.labels;
+  ctx.save();
+  ctx.textBaseline = 'middle';
+  for(let i=0; i<labels.length; i++){
+    const y = yScale.getPixelForValue(i);
+    let xStart = 0;
+    for(let di=0; di<datasets.length; di++){
+      const ds = datasets[di];
+      const v = ds.data[i] || 0;
+      if(v <= 0){ continue; }
+      const xEnd = xStart + v;
+      const pxStart = xScale.getPixelForValue(xStart);
+      const pxEnd = xScale.getPixelForValue(xEnd);
+      const segCenter = (pxStart + pxEnd)/2;
+      const segWidth = pxEnd - pxStart;
+      const labelText = v.toLocaleString('zh-CN') + ' 万';
+      if(segWidth > 50){
+        // segment wide enough - label INSIDE, white text
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(labelText, segCenter, y);
+      } else if(segWidth > 18){
+        // segment narrow but visible - label INSIDE, smaller dark text
+        ctx.fillStyle = '#1f2937';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(labelText, segCenter, y);
+      } else {
+        // segment very narrow - label OUTSIDE to right
+        ctx.fillStyle = STATUS_COLOR[ds.label] || '#1f2937';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(labelText, pxEnd + 4, y);
+      }
+      xStart = xEnd;
+    }
+  }
+  ctx.restore();
+}
 function drawRecoveryGapLabels(chart){
   const arr = chart.$recoveryArr;
   if(!arr) return;
@@ -493,6 +539,7 @@ const datalabelPlugin = {
   id:'datalabels',
   afterDatasetsDraw(chart){
     if(chart.canvas.id === 'cRecoveryGap'){ drawRecoveryGapLabels(chart); return; }
+    if(chart.canvas.id === 'cBiz' || chart.canvas.id === 'cDept'){ drawBizDeptLabels(chart); return; }
     const opts = chart.options.plugins && chart.options.plugins.datalabels;
     if(!opts || !opts.enabled) return;
     if(chart.config.type !== 'bar') return;
@@ -575,7 +622,8 @@ function renderBiz(rows){
     label:s, data:labels.map(c=>Math.round((totals[s][c]||0)/10000)),
     backgroundColor:STATUS_COLOR[s], stack:'a'
   }));
-  makeChart('cBiz',barCfg(labels,datasets,{horizontal:true, unit:'万', labels:true, stacked:true}));
+  makeChart('cBiz',barCfg(labels,datasets,{horizontal:true, unit:'万', labels:false, stacked:true}));
+  charts['cBiz'].$bdArr = {labels, totals, statuses};
 }
 function renderCust(rows){
   const m=aggSum(rows,'客户类型','剩余应收金额/涉诉金额（元）');
@@ -604,7 +652,8 @@ function renderDept(rows){
     label:s, data:labels.map(c=>Math.round((totals[s][c]||0)/10000)),
     backgroundColor:STATUS_COLOR[s], stack:'a'
   }));
-  makeChart('cDept',barCfg(labels,datasets,{horizontal:true, unit:'万', labels:true, stacked:true}));
+  makeChart('cDept',barCfg(labels,datasets,{horizontal:true, unit:'万', labels:false, stacked:true}));
+  charts['cDept'].$bdArr = {labels, totals, statuses};
 }
 function renderAction(rows){
   const labels=ACTION_FIELDS.map(a=>a.label);
