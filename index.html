@@ -609,11 +609,17 @@ function renderBiz(rows){
   statuses.forEach(s=>Object.keys(totals[s]).forEach(c=>allCats[c]=(allCats[c]||0)+totals[s][c]));
   const labels=Object.keys(allCats).sort((a,b)=>allCats[b]-allCats[a]);
   // build stacked datasets
+  const catTotals = labels.map(c => Math.round(allCats[c]/10000));
   const datasets=statuses.map(s=>({
     label:s, data:labels.map(c=>Math.round((totals[s][c]||0)/10000)),
     backgroundColor:STATUS_COLOR[s], stack:'a'
   }));
-  makeChart('cBiz',barCfg(labels,datasets,{horizontal:true, unit:'万', labels:false, stacked:true}));
+  makeChart('cBiz',barCfg(labels,datasets,{horizontal:true, unit:'万', labels:false, stacked:true,
+    tipCb:c=>{
+      const v=c.dataset.data[c.dataIndex]||0, t=catTotals[c.dataIndex]||0;
+      const pct=t>0?(v/t*100):0;
+      return c.dataset.label+': '+v.toLocaleString('zh-CN')+' 万  ('+pct.toFixed(1)+'%)';
+    }}));
   charts['cBiz'].$bdArr = {labels, totals, statuses};
 }
 function renderCust(rows){
@@ -639,11 +645,17 @@ function renderDept(rows){
   const allDepts={};
   statuses.forEach(s=>Object.keys(totals[s]).forEach(c=>allDepts[c]=(allDepts[c]||0)+totals[s][c]));
   const labels=Object.keys(allDepts).sort((a,b)=>allDepts[b]-allDepts[a]).slice(0,10);
+  const deptTotals = labels.map(c => Math.round(allDepts[c]/10000));
   const datasets=statuses.map(s=>({
     label:s, data:labels.map(c=>Math.round((totals[s][c]||0)/10000)),
     backgroundColor:STATUS_COLOR[s], stack:'a'
   }));
-  makeChart('cDept',barCfg(labels,datasets,{horizontal:true, unit:'万', labels:false, stacked:true}));
+  makeChart('cDept',barCfg(labels,datasets,{horizontal:true, unit:'万', labels:false, stacked:true,
+    tipCb:c=>{
+      const v=c.dataset.data[c.dataIndex]||0, t=deptTotals[c.dataIndex]||0;
+      const pct=t>0?(v/t*100):0;
+      return c.dataset.label+': '+v.toLocaleString('zh-CN')+' 万  ('+pct.toFixed(1)+'%)';
+    }}));
   charts['cDept'].$bdArr = {labels, totals, statuses};
 }
 function renderAction(rows){
