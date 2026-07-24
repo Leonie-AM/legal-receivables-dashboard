@@ -699,10 +699,10 @@ function renderAction(rows){
   const lsYes = rows.filter(r=>r['律师是否介入']==='是').reduce((s,r)=>s+r['剩余应收金额/涉诉金额（元）'],0)/10000;
   const lsNo  = rows.filter(r=>r['律师是否介入']==='否').reduce((s,r)=>s+r['剩余应收金额/涉诉金额（元）'],0)/10000;
   const labels = ['法务已介入','法务未介入','律师已介入','律师未介入'];
-  // 外环=法务介入，内环=律师介入；权重让环更粗以便看清
+  // 外环=法务介入(labels[0-1])，内环=律师介入(labels[2-3])，空位填 null 对齐索引
   makeChart('cAction',{type:'doughnut',data:{labels,datasets:[
-    {data:[fwYes,fwNo],backgroundColor:['#16a34a','#bbf7d0'],weight:30},
-    {data:[lsYes,lsNo],backgroundColor:['#2563eb','#bfdbfe'],weight:30}
+    {data:[fwYes,fwNo,null,null],backgroundColor:['#16a34a','#bbf7d0','transparent','transparent'],weight:30},
+    {data:[null,null,lsYes,lsNo],backgroundColor:['transparent','transparent','#2563eb','#bfdbfe'],weight:30}
   ]},
     options:{responsive:true,maintainAspectRatio:false,cutout:'50%',
       plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}},
