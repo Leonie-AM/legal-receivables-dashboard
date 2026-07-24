@@ -558,12 +558,24 @@ function renderStatus(rows){
   ],{stacked:true, unit:'万', labels:false}));
 }
 function renderBiz(rows){
-  const m=aggSum(rows,'业务类型','剩余应收金额/涉诉金额（元）');
-  let labels=Object.keys(m).sort((a,b)=>m[b]-m[a]);
-  let data=labels.map(k=>Math.round(m[k]/10000));
-  makeChart('cBiz',barCfg(labels,[
-    {label:'剩余应收',data,backgroundColor:labels.map((_,i)=>PALETTE[i%PALETTE.length])}
-  ],{horizontal:true, unit:'万', labels:true}));
+  const statuses=Object.keys(STATUS_COLOR);
+  // aggregate by business-type × status
+  const totals={}; statuses.forEach(s=>{totals[s]={};});
+  rows.forEach(r=>{
+    const cat=r['业务类型']||'其他', st=r['跟进状态']||'';
+    if(!totals[st]) totals[st]={};
+    totals[st][cat]=(totals[st][cat]||0)+(r['剩余应收金额/涉诉金额（元）']||0);
+  });
+  // get all categories, sort by total desc
+  const allCats={};
+  statuses.forEach(s=>Object.keys(totals[s]).forEach(c=>allCats[c]=(allCats[c]||0)+totals[s][c]));
+  const labels=Object.keys(allCats).sort((a,b)=>allCats[b]-allCats[a]);
+  // build stacked datasets
+  const datasets=statuses.map(s=>({
+    label:s, data:labels.map(c=>Math.round((totals[s][c]||0)/10000)),
+    backgroundColor:STATUS_COLOR[s], stack:'a'
+  }));
+  makeChart('cBiz',barCfg(labels,datasets,{horizontal:true, unit:'万', labels:true, stacked:true}));
 }
 function renderCust(rows){
   const m=aggSum(rows,'客户类型','剩余应收金额/涉诉金额（元）');
@@ -576,12 +588,23 @@ function renderCust(rows){
         tooltip:{callbacks:{label:c=>{const sum=data.reduce((a,b)=>a+b,0);return c.label+': '+c.parsed.toLocaleString()+' 万元 ('+(c.parsed/sum*100).toFixed(1)+'%)';}}}}}});
 }
 function renderDept(rows){
-  const m=aggSum(rows,'销售归属部门','剩余应收金额/涉诉金额（元）');
-  let labels=Object.keys(m).sort((a,b)=>m[b]-m[a]).slice(0,10);
-  let data=labels.map(k=>Math.round(m[k]/10000));
-  makeChart('cDept',barCfg(labels,[
-    {label:'剩余应收',data,backgroundColor:labels.map((_,i)=>PALETTE[i%PALETTE.length])}
-  ],{horizontal:true, unit:'万', labels:true}));
+  const statuses=Object.keys(STATUS_COLOR);
+  // aggregate by department × status
+  const totals={}; statuses.forEach(s=>{totals[s]={};});
+  rows.forEach(r=>{
+    const cat=r['销售归属部门']||'其他', st=r['跟进状态']||'';
+    if(!totals[st]) totals[st]={};
+    totals[st][cat]=(totals[st][cat]||0)+(r['剩余应收金额/涉诉金额（元）']||0);
+  });
+  // get all departments, sort by total, take top 10
+  const allDepts={};
+  statuses.forEach(s=>Object.keys(totals[s]).forEach(c=>allDepts[c]=(allDepts[c]||0)+totals[s][c]));
+  const labels=Object.keys(allDepts).sort((a,b)=>allDepts[b]-allDepts[a]).slice(0,10);
+  const datasets=statuses.map(s=>({
+    label:s, data:labels.map(c=>Math.round((totals[s][c]||0)/10000)),
+    backgroundColor:STATUS_COLOR[s], stack:'a'
+  }));
+  makeChart('cDept',barCfg(labels,datasets,{horizontal:true, unit:'万', labels:true, stacked:true}));
 }
 function renderAction(rows){
   const labels=ACTION_FIELDS.map(a=>a.label);
